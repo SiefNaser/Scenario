@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenario | سيناريو</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one briefing desk. A flowchart-style rail on top tracks the setup, one decision per screen, case files dealt out at the end. */
+:root{
+  --paper:#F5F2EC; --card:#FBFAF6; --soft:#E6E8DD; --ink:#465661; --muted:#5C6C77; --line:#C9CFBF;
+  --accent:#465661; --accent-ink:#F5F2EC; --hi:#6F8799; --warn:#8F6A4C; --sand:#D9C9B6; --sage:#C1C9B8; --blue:#9BAEBB; color-scheme:light;
+  --display:'Bricolage Grotesque','Arial Narrow',Arial,sans-serif;
+  --body:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'DM Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+.para{margin:2px 0 0;font-size:15px;line-height:1.55}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:22px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:22px;display:flex;align-items:center;gap:10px}
+.brand i{width:14px;height:14px;background:var(--accent);border-radius:3px;transform:rotate(45deg);display:inline-block}
+.tag{font-family:var(--mono);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+/* rail: flowchart nodes */
+.rail{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:0}
+.rail li{display:flex;align-items:center;flex:1;min-width:0}
+.rail li:last-child{flex:0 0 auto}
+.rail button{border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-family:var(--mono);font-size:12px;white-space:nowrap;color:var(--muted)}
+.rail button[disabled]{cursor:default}
+.rail .done button{border-color:var(--ink);color:var(--ink)}
+.rail .now button{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rail .skip button{border-style:dashed;text-decoration:line-through}
+.rail .wire{flex:1;height:1.5px;background:var(--line);min-width:6px}
+.rail .done .wire{background:var(--ink)}
+.rail .n{display:none}
+@media (max-width:900px){
+  .rail button{padding:6px 0;width:30px;text-align:center}
+  .rail .lbl{display:none}.rail .n{display:inline}
+  .rail .now button{width:auto;padding:6px 12px}
+  .rail .now .lbl{display:inline}.rail .now .n{display:none}
+}
+
+.panel{display:flex;flex-direction:column;gap:20px}
+.q{font-size:clamp(34px,7vw,60px);font-weight:800;line-height:1.02}
+.q em{font-style:normal;color:var(--hi)}
+.sub{color:var(--muted);max-width:60ch;margin:0}
+.label{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.block{display:flex;flex-direction:column;gap:10px}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.tile{text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:4px;min-height:104px;transition:transform .12s,border-color .12s}
+.tile:hover{border-color:var(--ink);transform:translateY(-2px)}
+.tile b{font-family:var(--display);font-size:22px;font-weight:800}
+.tile span{color:var(--muted);font-size:14px}
+.tile[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.tile[aria-pressed="true"] b::after{content:" ✓";color:var(--accent)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:9px 16px;font-weight:500}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+
+.steppers{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.stepper{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.stepper .ctl{display:flex;align-items:center;gap:10px}
+.stepper output{font-family:var(--display);font-weight:800;font-size:34px;min-width:1.6ch;text-align:center;font-variant-numeric:tabular-nums}
+.rnd{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--ink);background:transparent;font-size:22px;line-height:1}
+.rnd:hover{background:var(--ink);color:var(--paper)}
+
+details.paste{background:var(--soft);border-radius:14px;padding:12px 16px}
+details.paste summary{cursor:pointer;font-weight:600}
+details.paste .in{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+textarea,input[type=text]{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{min-height:110px;resize:vertical}
+.msg{font-size:14px;color:var(--muted);min-height:1.2em}
+
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.team{background:var(--card);border:1.5px solid var(--line);border-top:6px solid var(--g);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.team .gname{font-family:var(--display);font-weight:800;font-size:18px;border-color:transparent;padding:4px 6px;margin:-2px -6px 0}
+.team .gname:hover,.team .gname:focus{border-color:var(--line)}
+.team input.m{padding:7px 10px;font-size:15px}
+
+.nav{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:6px}
+.btn{border:1.5px solid var(--ink);background:transparent;border-radius:12px;padding:12px 20px;font-weight:600}
+.btn:hover{background:var(--soft)}
+.btn.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-family:var(--display);font-weight:800;font-size:18px;padding:12px 26px}
+.btn.go:hover{filter:brightness(1.06)}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.btn.sm{padding:8px 14px;font-size:14px;border-color:var(--line)}
+
+.sum{display:flex;flex-wrap:wrap;gap:8px}
+.sum span{font-family:var(--mono);font-size:12px;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;background:var(--card)}
+
+.loading{display:flex;flex-direction:column;gap:14px;align-items:flex-start;padding:30px 0}
+.bar{width:min(360px,100%);height:8px;border-radius:99px;background:var(--soft);overflow:hidden}
+.bar i{display:block;height:100%;width:40%;background:var(--accent);border-radius:99px;animation:slide 1.2s ease-in-out infinite alternate}
+@keyframes slide{from{transform:translateX(-60%)}to{transform:translateX(210%)}}
+
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-items:start}
+.file{background:var(--card);border:1.5px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.file .head{background:var(--g);color:#fff;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.file .head b{font-family:var(--display);font-weight:800;font-size:19px;overflow-wrap:anywhere}
+.file .head code{font-family:var(--mono);font-size:12px;background:rgba(0,0,0,.28);padding:3px 7px;border-radius:5px;white-space:nowrap}
+.file .who{padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px;border-bottom:1.5px dashed var(--line)}
+.file .who span{font-size:13px;background:var(--soft);border-radius:99px;padding:3px 10px}
+.sealed{padding:26px 14px;display:flex;flex-direction:column;align-items:center;gap:12px;background:repeating-linear-gradient(135deg,transparent 0 14px,var(--soft) 14px 28px)}
+.sealed .stamp{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;border:2px solid var(--ink);padding:4px 10px;background:var(--card);transform:rotate(-4deg)}
+.brief{padding:14px;display:flex;flex-direction:column;gap:12px;animation:rise .35s ease-out}
+@keyframes rise{from{opacity:.2;transform:translateY(8px)}to{opacity:1;transform:none}}
+.brief h3{font-size:24px;font-weight:800;line-height:1.1}
+.brief dl{margin:0;display:flex;flex-direction:column;gap:10px}
+.brief dt{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.brief dd{margin:2px 0 0}
+.brief ul{margin:2px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.brief li{border:1.5px solid var(--line);border-radius:8px;padding:3px 9px;font-size:14px}
+.roles{padding:0 14px 14px;display:flex;flex-direction:column;gap:8px}
+.roles>.label{border-top:1.5px dashed var(--line);padding-top:12px}
+.role{border:1.5px solid var(--line);border-left:5px solid var(--g,var(--ink));border-radius:10px;padding:9px 12px;display:flex;flex-direction:column;gap:2px}
+.role b{font-family:var(--display);font-weight:800;font-size:18px;overflow-wrap:anywhere}
+.role .k{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:4px}
+.role .also{font-size:13px;color:var(--muted)}
+.shared{border-color:var(--ink)}
+.shared .head{background:var(--ink);color:var(--paper)}
+.shared .brief h3{font-size:clamp(26px,5vw,38px)}
+.solved{background:var(--soft);border-radius:10px;padding:12px}
+.mission{border-left:4px solid var(--accent);padding:4px 0 4px 12px;font-weight:600}
+.src{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.stk{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.stk h3{font-size:22px;font-weight:800}
+.stk-list{display:flex;flex-direction:column;gap:12px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.ans{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.jg{display:flex;gap:6px;flex-wrap:wrap}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.timer{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.timer output{font-family:var(--mono);font-size:36px;font-weight:500;font-variant-numeric:tabular-nums}
+.timer output.zero{color:var(--warn)}
+.score{display:flex;align-items:center;gap:10px;font-weight:600}
+input[type=number]{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;width:84px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:620px}
+th,td{padding:8px 10px;border-bottom:1.5px solid var(--line);text-align:left}
+th{font-family:var(--mono);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+td.tot{font-family:var(--display);font-weight:800;font-size:22px}
+.rail{overflow-x:auto}
+.rail button{padding:6px 9px;font-size:11px}
+.desc ul{margin:2px 0 8px;padding-left:18px;font-size:14px}.desc b{font-family:var(--mono);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.fb{font-size:14px;color:var(--muted)}
+
+.top{align-items:center;padding-bottom:14px;border-bottom:4px solid transparent;border-image:linear-gradient(90deg,#465661 0 25%,#9BAEBB 25% 50%,#C1C9B8 50% 75%,#D9C9B6 75% 100%) 1}
+.brand img{height:68px;width:auto;display:block}
+.tag{background:var(--sand);color:var(--ink);padding:5px 12px;border-radius:999px}
+.sum span{background:rgba(155,174,187,.3);border-radius:999px;padding:3px 12px}
+.mission{background:rgba(217,201,182,.4);border-radius:10px}
+.solved{background:rgba(193,201,184,.4);border-radius:10px;padding:10px 12px}
+.stk{background:var(--card);border-color:var(--sage);box-shadow:0 2px 0 var(--sand)}
+.stk h3{color:var(--ink)}
+.btn.go{background:var(--ink);color:var(--paper)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.timer output{color:var(--ink);background:rgba(193,201,184,.45);padding:2px 14px;border-radius:12px}
+.timer output.zero{color:var(--warn);background:rgba(217,201,182,.6)}
+details.paste{background:rgba(245,242,236,.6)}
+@media (max-width:600px){.brand img{height:54px}}
+.linkbtn{background:none;border:0;padding:0 0 0 6px;color:inherit;font:inherit;text-transform:inherit;letter-spacing:inherit;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><img src="logo.png" alt="Scenario / سيناريو" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'Scenario | سيناريو'}))"></div>
+    <div class="tag">Five stages, one case · <span id="aistat">AI: checking…</span></div>
+  </header>
+    <main class="panel" id="app"></main>
+</div>
+<script>
+"use strict";
+const COLORS=['#465661','#5E7A91','#66856A','#8F6A4C','#7C6F8C','#8C6A6A','#4F7F7B','#5F6E96','#7F7550','#5E7F54','#7A5C4A','#667A8A'];
+const LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const STEPS=['Audience','Details','Teams','Mode','Cases','Stakeholders','Benchmark','Concept','Present','Quickfire','Score'];
+const INST=[
+  {id:'school',t:'School',d:'Grades 9 to 12, by course'},
+  {id:'uni',t:'University',d:'One or more disciplines'},
+  {id:'workshop',t:'Workshop / Seminar',d:'Goes straight to teams'},
+  {id:'corp',t:'Corporate',d:'Goes straight to teams'}];
+const CATS=[['sci','Science'],['math','Maths'],['engl','English'],['hist','History / Geography'],['gen','General']];
+const DISCS=[['engr','Engineering'],['bus','Business'],['med','Medicine'],['econ','Economics'],['pol','Politics']];
+const ENGT=['Mechanical','Electrical','Civil','Computer','Mechatronics','Chemical'];
+const NAME=Object.fromEntries([...CATS,...DISCS]);
+const FAMILY={school:['sci','math','engl','hist','gen'],uni:['engr','bus','med','econ','pol'],workshop:['work','corp','gen'],corp:['corp','work','bus']};
+
+/* Built-in scenario bank: t title, p problem, l location, s stakeholders as [name, their main need], n overall need, x limits */
+const BANK={
+sci:[
+ {t:"The Fading Fish",p:"Every summer the town lake turns green with algae and fish wash up dead. Fishers blame farm fertiliser. Farmers say the lake was always like this.",l:"A lake town of 20,000 people, ringed by farms",s:[["Fishers","A lake with enough healthy fish to earn a living"],["Farmers","To keep using enough fertiliser for a good harvest"],["Town council","A fix that does not overspend or lose votes"],["Families who swim there","Water that is safe for their children"]],n:"Clear, living water by next summer while farms keep their harvest.",x:"A small town budget, and farming cannot be banned."},
+ {t:"Hot Classrooms",p:"In May the top-floor classrooms reach 38°C. Students lose focus and two fainted during a mock exam. The school cannot afford air conditioning for every room.",l:"A three-storey public school in a hot, dry city",s:[["Students","Rooms cool enough to think in during exams"],["Teachers","Lessons that are not lost to the heat"],["Principal","A fix that fits the budget"],["Parents' board","Proof their children are safe at school"]],n:"Rooms at least 5°C cooler during exam weeks.",x:"Money for only two AC units, and the power cuts out for an hour most days."},
+ {t:"The Plastic Canal",p:"Plastic waste blocks the irrigation canal. Fields flood, the standing water breeds mosquitoes, and the clinic reports more fevers.",l:"A canal running through a village at the edge of a city",s:[["Farmers","Canal water that reaches the fields without flooding them"],["Shop owners","Somewhere cheap to get rid of packaging"],["Local clinic","Fewer mosquito-borne fevers"],["Waste collectors","Fair pay and a workable collection route"]],n:"A clear canal and a way to stop new dumping.",x:"No regular rubbish truck, and volunteers are free only on weekends."}],
+math:[
+ {t:"The Bus Puzzle",p:"240 students from five neighbourhoods share three school buses. Some ride for 90 minutes while others ride for 10. Parents call it unfair.",l:"A school on the edge of a spread-out city",s:[["Students","A short ride and more sleep"],["Bus drivers","Routes they can finish on time"],["Parents","Fair treatment for every neighbourhood"],["School finance officer","No increase in fuel costs"]],n:"No student rides longer than 45 minutes.",x:"Three buses of 50 seats, two runs each per morning, and a fixed fuel budget."},
+ {t:"The Canteen Queue",p:"600 students have a 25-minute break. Two canteen windows each serve one student every 20 seconds, so most of the queue never reaches the front.",l:"A crowded school courtyard",s:[["Students","Time to eat, not just queue"],["Canteen staff","A pace they can keep up safely"],["Principal","Classes that restart on time"],["Food supplier","Predictable orders each day"]],n:"Everyone who wants food is served within the break.",x:"The break cannot be longer and there is space for only one more window."},
+ {t:"One Pitch, Twelve Teams",p:"Twelve class teams want a football league on the school's only pitch. Last year the schedule collapsed and three teams played half as many games as the rest.",l:"A school with a single pitch",s:[["Players","The same number of games as everyone else"],["PE teacher","A schedule that runs without daily disputes"],["Girls' teams","Equal slots at good times"],["Caretaker","Time to maintain the pitch"]],n:"A schedule where every team plays the same number of games and it ends before exams.",x:"Ten after-school slots a week, six weeks, no weekends."}],
+engl:[
+ {t:"The Unread Notice",p:"Half the students missed a change to the exam timetable. Notices go up on a board nobody reads and are announced over a speaker nobody can hear.",l:"A school of 900 students",s:[["Students","To hear news in time to act on it"],["Teachers","To stop repeating the same notice"],["Parents","To know about changes that affect home"],["Admin office","One simple channel to manage"]],n:"Important news reaches 95% of students within one day.",x:"Many students have no phone at school, and notices must work in two languages."},
+ {t:"The Empty Library",p:"The school library holds 4,000 books and gets about six visitors a day. The principal is considering turning it into a storage room.",l:"A second-floor school library",s:[["Librarian","To keep the library open, and the job with it"],["Students","A reason to go and books they want"],["English teachers","Students who read beyond the textbook"],["Principal","Good use of a scarce room"]],n:"Enough daily readers to justify keeping the room.",x:"No money for new books, and it opens only during breaks."},
+ {t:"The Rumour",p:"A false message saying the school trip was cancelled spread through class group chats. Students argued, some asked for refunds, and the real organiser was blamed.",l:"Class group chats, ten days before the trip",s:[["Students","To know what is true"],["The teacher organising the trip","Their reputation cleared"],["Parents","Clear answers about money and plans"],["Student council","A trusted way to confirm news"]],n:"Correct the story and stop the next rumour earlier.",x:"Group chats cannot be banned or monitored."}],
+hist:[
+ {t:"The Old Market",p:"A 200-year-old market street is crumbling. The city wants to demolish it for a wider road. Shopkeepers say the street is the district's history and their living.",l:"The historic centre of a growing city",s:[["Shopkeepers","To keep trading in the same street"],["City planners","Traffic that moves"],["Residents","Safe buildings and a quieter district"],["Tour guides","The historic street to keep its character"]],n:"Safe buildings and less traffic.",x:"The budget covers restoration or the road, not both."},
+ {t:"The Shrinking Shore",p:"A coastal village loses about three metres of beach every year. Within ten years the first row of homes will be in the water.",l:"A fishing village on a sandy coast",s:[["Fishing families","To stay in their homes near the harbour"],["Hotel owner","A beach that guests still come for"],["Local government","Protection it can afford"],["Coastal scientists","A long-term fix that works with nature"]],n:"Protect homes and the fishing harbour.",x:"A sea wall along the whole coast costs too much, and families refuse to move."},
+ {t:"Water for Two Villages",p:"An upstream village plans a small dam to water its fields. The downstream village drinks from the same river and fears it will run dry.",l:"A river valley shared by two villages",s:[["Upstream farmers","Reliable water for crops in summer"],["Downstream families","Drinking water all year"],["Regional water authority","An agreement both villages keep"],["Herders","Access to the river for their animals"]],n:"Enough water for crops upstream and homes downstream.",x:"River flow drops by 60% in summer and there is no other source."}],
+gen:[
+ {t:"The Empty Lot",p:"The abandoned lot beside the school has become a dump. The council will hand it to the students for one year if they present a convincing plan.",l:"A fenced lot next to the school gate",s:[["Students","A place of their own to use"],["Neighbours","No noise, rubbish or danger next door"],["Local council","A plan that will not embarrass it"],["Nearby shop owners","More passers-by, not fewer"]],n:"A safe space the whole neighbourhood uses.",x:"Almost no money, and the council can take the lot back."},
+ {t:"Phones in Class",p:"The school must set a phone policy. Teachers say phones wreck attention. Students say they need them for research and to reach home.",l:"A secondary school, grades 9 to 12",s:[["Students","To reach home and use phones for study"],["Teachers","Attention in class"],["Parents","To contact their child in an emergency"],["Principal","A rule that can be enforced fairly"]],n:"Fewer distractions without cutting students off.",x:"One rule for all grades, enforceable without searching bags."},
+ {t:"Lunch Waste",p:"The canteen throws away about 40 kg of food a day, while some students skip lunch because they cannot pay.",l:"A school canteen serving 700 students",s:[["Canteen staff","Less waste without more work"],["Students","An affordable lunch without embarrassment"],["Parents","Value for the money they pay"],["A local charity","Safe food it can pass on"]],n:"Less waste and no student going hungry.",x:"Food-safety rules apply and there are no extra staff."}],
+engr:[
+ {t:"The Crossing",p:"Thousands of students cross a six-lane road to reach campus. There were two serious accidents this year and the nearest footbridge is 900 metres away.",l:"The main gate of a university on a ring road",s:[["Students","A quick, safe way across"],["Traffic authority","No new congestion on the ring road"],["University administration","No more accidents at its gate, at a cost it can fund"],["Drivers and microbus operators","To keep stopping near the gate for passengers"]],n:"A safe, wheelchair-accessible crossing for 4,000 people a day.",x:"A fixed budget, the road can close for two nights at most, and buried utilities are unmapped."},
+ {t:"Power for the Clinic",p:"A rural clinic loses grid power for about three hours a day. Vaccines spoil in the fridge and night deliveries happen by phone torch.",l:"A two-room clinic in a remote, dusty village",s:[["Nurses","Equipment that works without them repairing it"],["Patients","Safe vaccines and care at night"],["Health ministry","A design it can copy to other clinics cheaply"],["The village electrician","A system simple enough to maintain"]],n:"The vaccine fridge and lights running 24 hours.",x:"A tight budget, no technician on site, and summer heat of 45°C."},
+ {t:"The Leaking Network",p:"A town loses 35% of its treated water through leaks in pipes laid decades ago. Nobody has a reliable map of where they run.",l:"An older town of 80,000 people",s:[["Water utility","To stop paying to treat water that is lost"],["Households","Steady pressure and no price rise"],["Municipality","Visible results within two years"],["Road authority","Roads left intact"]],n:"Halve the losses within two years.",x:"Main streets cannot be dug up, there are no pipe maps, and funds are limited."}],
+bus:[
+ {t:"The Café Next Door",p:"A family café lost 30% of its customers after a chain opened beside it with lower prices and a loyalty app.",l:"A busy street near a university",s:[["Owner family","To keep the business in the family"],["Six staff","Their jobs and their hours"],["Loyal regulars","The café to stay the place they love"],["The landlord","A tenant who can pay the new rent"]],n:"Win back enough customers to stay profitable.",x:"It cannot match the chain's prices, cash is short, and the lease renews in four months."},
+ {t:"One in Five Comes Back",p:"An online clothing shop has one in five orders returned. Late deliveries and wrong sizes are pulling its rating down.",l:"A warehouse flat serving three cities",s:[["Founder","Fewer returns eating the profit"],["Customers","The right size, on time"],["Courier company","Clear addresses and steady volume"],["Two packers","A process that prevents mistakes under pressure"]],n:"Cut returns by half before peak season.",x:"It cannot afford its own drivers, and peak season starts in six weeks."},
+ {t:"Too Popular",p:"A handmade goods brand went viral. Orders are ten times what the workshop can make, waits have reached three weeks and customers are angry.",l:"A small workshop with four makers",s:[["Founder","To grow without losing control"],["Makers","A pace that does not burn them out"],["Customers","Honest delivery dates"],["Materials supplier","Firm orders before it expands"]],n:"Meet demand without losing the handmade quality.",x:"No investor, and the supplier cannot raise volume quickly."}],
+med:[
+ {t:"The Crowded ER",p:"The average wait in a public emergency room is eight hours. About 60% of the patients are not urgent, and staff are burning out.",l:"A public hospital serving half a million people",s:[["Patients","To be seen quickly and taken seriously"],["ER doctors and nurses","A workload that is safe"],["Hospital director","Shorter waits with no extra budget"],["Nearby primary-care clinics","Support if more patients are sent to them"]],n:"Urgent cases seen within minutes.",x:"No new beds or staff this year, and nobody can be turned away."},
+ {t:"Missed Doses",p:"At a diabetes clinic, 40% of patients stop taking their medication within six months and return with complications.",l:"An outpatient clinic in a low-income district",s:[["Patients","Treatment that fits daily life"],["Families","To know how to help at home"],["Pharmacists","Time and a role in follow-up"],["Clinic doctors","Fewer avoidable complications"]],n:"Most patients still on treatment after a year.",x:"Visits last five minutes, many patients read with difficulty, and travel costs money."},
+ {t:"Outbreak at the Dorm",p:"Thirty students in one dorm fell ill with stomach symptoms in two days. The source is unknown and exams begin next week.",l:"A university dormitory with a shared kitchen",s:[["Sick students","Care, and fairness over missed exams"],["Kitchen staff","Not to be blamed without evidence"],["University administration","Exams that go ahead safely"],["Local health office","Fast, accurate information"]],n:"Stop the spread and find the source.",x:"Lab results take three days and the dorm cannot be closed."}],
+econ:[
+ {t:"Bread Prices",p:"The price of bread rose 40% in three months. Queues are growing, bakers say flour costs more than they earn, and protests have started.",l:"A city of one million",s:[["Low-income families","Bread they can afford every day"],["Bakers","A price that covers their costs"],["Wheat importers","Payment and stable rules"],["City government","Calm streets within its budget"]],n:"Affordable bread without empty shelves.",x:"The budget cannot fund a full subsidy, and a price cap may make bakers stop baking."},
+ {t:"The Closing Factory",p:"The textile factory that employs one in four workers in town will close in a year. Shops and young families are already leaving.",l:"A factory town of 40,000",s:[["Workers","A new income before the closure"],["Factory owner","A clean exit"],["Town council","A tax base and a reason for people to stay"],["Local shop owners","Customers with money to spend"]],n:"New income for the town before the gates shut.",x:"The owner will not stay, and the retraining fund is small."},
+ {t:"Tourists or Residents",p:"Rents in the historic district doubled as flats became holiday lets. Locals are being priced out, yet tourism brings half the district's income.",l:"The old quarter of a coastal city",s:[["Tenants","Rent they can pay in their own district"],["Property owners","The freedom to earn from their property"],["Tourism businesses","Visitors who keep coming"],["City council","A rule it can enforce cheaply"]],n:"Homes residents can afford.",x:"Tourism jobs must be protected and the council has no money to build housing."}],
+pol:[
+ {t:"The Shared River",p:"Arvenia is building a dam on a river that Sorel, downstream, depends on for farming. Talks have stalled and both governments face pressure at home.",l:"The border region between two fictional neighbours",s:[["Government of Arvenia","Electricity and a finished dam"],["Government of Sorel","A guaranteed minimum flow"],["Downstream farmers","Water in the planting season"],["A regional mediator","A deal both sides sign and keep"]],n:"A deal on filling and operating the dam.",x:"The dam is 70% built and neither side can be seen to back down."},
+ {t:"Low Turnout",p:"Only 18% of voters took part in the last city council election. Among under-30s it was 6%.",l:"A mid-sized city, eight months before the next election",s:[["Young citizens","A reason to believe their vote matters"],["Council members","Legitimacy, without losing their seats"],["Election commission","A fair, simple process"],["Civic groups","Access and resources to reach people"]],n:"A clear rise in turnout, above all among young voters.",x:"Voting cannot be made compulsory and the budget is small."},
+ {t:"The Square",p:"The city wants to close the central square for three years to build a metro station. It is the traditional place for markets and public gatherings.",l:"The main square of a capital city",s:[["City government","The metro built on schedule"],["Market traders","A place to trade for three years"],["Civic groups","A guaranteed space to gather"],["Commuters","The station open as soon as possible"]],n:"The metro gets built and public life keeps a home.",x:"Metro funding expires if work is delayed, and no other square is as large."}],
+work:[
+ {t:"The Silent Team",p:"In an eight-person project team, two people do all the talking. Decisions made in meetings are quietly reversed later.",l:"A project team three weeks from its deadline",s:[["Quiet members","A safe way to disagree"],["The two dominant voices","Fast decisions"],["Team lead","Decisions that stick"],["The client","The project delivered on time"]],n:"Decisions the whole team supports.",x:"The team cannot change and the deadline is fixed."},
+ {t:"Volunteers Vanish",p:"A community organisation loses 70% of its new volunteers within a month.",l:"A neighbourhood food bank",s:[["Volunteers","To feel useful and welcome"],["Coordinator","Less time spent retraining newcomers"],["Families served","Reliable help every week"],["Donors","Evidence their money is well used"]],n:"Volunteers who stay for a season or more.",x:"Nobody can be paid and the coordinator works part-time."},
+ {t:"One Hall, Three Events",p:"The community hall is triple-booked for the same Friday: a wedding, a youth tournament and a blood donation drive.",l:"The only hall in a small town",s:[["The wedding family","Their one date kept"],["Tournament organiser","Space for matches already announced"],["Blood drive team","A clean, quiet area for donors"],["Hall manager","All three clients kept, and the hall's reputation"],["Neighbours","Parking and noise under control"]],n:"All three events take place.",x:"No other hall, every deposit is paid, and five days remain."}],
+corp:[
+ {t:"The Late Launch",p:"A product launch is six weeks behind. Sales promised it to the company's biggest client, and engineers warn that rushing will ship bugs.",l:"A software company of 120 people",s:[["Engineering","Time to ship something that works"],["Sales","To keep its promise to the client"],["The key client","A working product on a date it can trust"],["CEO","The contract and the reputation both safe"]],n:"Keep the client without shipping a broken product.",x:"No new hires, and a contract penalty applies in 30 days."},
+ {t:"Two Offices, One Team",p:"After a merger, two offices duplicate each other's work and blame each other for errors. Three key people have resigned.",l:"Two offices in different cities",s:[["Office A team","Recognition for its way of working"],["Office B team","Not to be absorbed and ignored"],["HR","An end to the resignations"],["Managing director","One team, soon"],["Customers","One contact and consistent answers"]],n:"One team with clear ownership.",x:"No layoffs were promised, the systems differ, and budgets are frozen."},
+ {t:"Support Overload",p:"Support tickets doubled after a product update. Response time went from two hours to three days and reviews are dropping.",l:"A ten-person support desk",s:[["Support agents","A workload they can survive"],["Customers","A quick, real answer"],["Product team","Clear data on what is breaking"],["Finance","No rise in headcount costs"]],n:"Response times back under four hours.",x:"A hiring freeze, and the update cannot be rolled back."}]
+};
+/* Real, previously solved cases */
+const HIST={
+sci:{t:"The Great Stink",y:"1858",p:"London's sewage ran straight into the River Thames. In the hot summer of 1858 the smell became unbearable and cholera kept returning.",l:"London, along the River Thames",s:[["Londoners","A city they can breathe and live in"],["Parliament","A fix that justifies its cost"],["Engineers","Authority and money to build at scale"],["Doctors","An end to recurring cholera"]],n:"Stop the smell and the recurring disease.",x:"A crowded city that could not be emptied or rebuilt.",v:"Parliament funded Joseph Bazalgette's plan: a network of intercepting sewers that carried waste east, away from the city, with new embankments along the river."},
+math:{t:"The Longitude Problem",y:"1714",p:"Ships could measure latitude but not longitude, so they often did not know how far east or west they were. Wrecks cost many lives.",l:"The open sea, on British naval and trade routes",s:[["Sailors","To know where they are and get home"],["The Royal Navy","Fewer ships lost"],["Merchants","Cargo that arrives"],["Astronomers","A method built on reliable sky tables"]],n:"A way to find a ship's longitude accurately at sea.",x:"No clock of the time kept good time on a rolling ship.",v:"Britain offered a large prize. John Harrison, a clockmaker, built a marine chronometer accurate enough to compare local time with home-port time. Astronomers developed a rival method using the Moon's position."},
+engl:{t:"Reading by Touch",y:"1824",p:"Blind students could only read slowly from books with raised print letters, and had no practical way to write.",l:"The Royal Institute for Blind Youth, Paris",s:[["Blind students","To read and write for themselves"],["Teachers","A system they can teach quickly"],["The school's directors","A method that is cheap to produce"],["Families","Children who can study and work"]],n:"A fast way to both read and write.",x:"It had to fit under a fingertip and be writable with simple tools.",v:"Louis Braille, a student at the school, simplified an army 'night writing' code into a six-dot cell that one fingertip could read. It later spread worldwide."},
+hist:{t:"The 1953 North Sea Flood",y:"1953",p:"A storm surge broke the dikes in the south-west Netherlands. More than 1,800 people died and large areas were under water.",l:"Zeeland and South Holland, the Netherlands",s:[["Coastal residents","Safety in their homes"],["Farmers","Land free of salt water"],["Fishers","Open access to the sea and living estuaries"],["The Dutch government","Protection at a cost the country can carry"]],n:"Make sure a flood like this cannot happen again.",x:"Much of the country lies below sea level, and ports and estuary wildlife had to keep working.",v:"The Dutch built the Delta Works: a chain of dams and storm-surge barriers that shortened the coastline. One barrier was given movable gates so the tide still flows in normal weather."},
+gen:{t:"Apollo 13",y:"1970",p:"An oxygen tank exploded on the way to the Moon. The three astronauts moved into the lunar module, where carbon dioxide began to build up to dangerous levels.",l:"Space, about 320,000 km from Earth",s:[["Three astronauts","Clear steps they can follow while exhausted"],["Mission control","A plan it can test before sending it up"],["Engineers on the ground","An exact list of what is on board"],["Families","Honest news"]],n:"Breathable air for the trip home.",x:"Only items already on board, and the spare filters were the wrong shape for the lunar module.",v:"Engineers on the ground designed an adapter from a suit hose, plastic bags, cardboard and tape, and read the instructions up to the crew. All three returned safely."},
+engr:{t:"The Wobbly Bridge",y:"2000",p:"London's Millennium Bridge swayed sideways on opening day as crowds crossed. People began walking in step with the sway, which made it worse. It closed after two days.",l:"The River Thames, London",s:[["Pedestrians","A bridge that feels safe"],["The bridge's engineers","To understand the cause before fixing it"],["City authorities","The bridge reopened without a scandal"],["The architects","The slim design left visible"]],n:"A stable bridge that keeps its slim design.",x:"Rebuilding was not an option, and the look of the bridge had to stay.",v:"Engineers fitted viscous dampers and tuned mass dampers under the deck to absorb the movement. The bridge reopened in 2002."},
+bus:{t:"The Tylenol Crisis",y:"1982",p:"Seven people in the Chicago area died after taking Tylenol capsules that someone had laced with cyanide. Trust in the best-selling painkiller collapsed.",l:"Chicago, then the whole United States",s:[["Customers","Certainty that their medicine is safe"],["Johnson & Johnson","The brand to survive"],["Pharmacies","Clear instructions on what to pull from shelves"],["Police and regulators","Cooperation and evidence"]],n:"Protect the public and rebuild trust.",x:"Nobody knew how many bottles were affected or who was responsible.",v:"Johnson & Johnson recalled about 31 million bottles nationwide, warned the public openly, and relaunched with tamper-resistant packaging."},
+med:{t:"The Broad Street Pump",y:"1854",p:"Hundreds of people died of cholera in a few days in one London neighbourhood. Most doctors believed the disease spread through bad air.",l:"Soho, London",s:[["Residents","To know what is safe to drink"],["Dr John Snow","Evidence strong enough to convince officials"],["Parish officials","Grounds to act without causing panic"],["Water companies","Their supply not blamed unfairly"]],n:"Find the source and stop the deaths.",x:"Germs were not yet understood, so the cause could not be seen directly.",v:"John Snow mapped the deaths, saw them cluster around one water pump, and persuaded officials to remove its handle."},
+econ:{t:"India's 1991 Crisis",y:"1991",p:"India's foreign currency reserves fell so low they covered only a few weeks of imports. The country was close to defaulting on its debts.",l:"India",s:[["Government of India","To avoid default and stay in office"],["The Reserve Bank","Foreign currency, fast"],["Lenders and the IMF","Proof that reforms will happen"],["Businesses and households","Stable prices and jobs"]],n:"Avoid default and restore confidence.",x:"Almost no reserves and a fragile government.",v:"India pledged gold for emergency loans, devalued the rupee, took an IMF programme, and opened the economy by cutting licensing rules and trade barriers."},
+pol:{t:"The Cuban Missile Crisis",y:"1962",p:"The United States discovered Soviet nuclear missiles being installed in Cuba. For thirteen days the two powers stood close to nuclear war.",l:"Cuba, Washington and Moscow",s:[["United States government","The missiles gone"],["Soviet government","Security for Cuba and a way to step back with dignity"],["Cuba","A guarantee against invasion"],["Allies on both sides","Not to be traded away or dragged into war"]],n:"Remove the missiles without starting a war.",x:"Neither leader could appear weak, and any strike risked escalation.",v:"The US set up a naval quarantine instead of attacking. The Soviet Union withdrew the missiles in exchange for a US pledge not to invade Cuba and a secret agreement to remove US missiles from Turkey."},
+work:{t:"The Chilean Mine Rescue",y:"2010",p:"A mine collapse trapped 33 miners about 700 metres underground. For 17 days nobody knew whether they were alive.",l:"San José mine, near Copiapó, Chile",s:[["33 miners","Food, contact and hope"],["Families at the surface","The truth, and a say"],["Chilean government","Every miner out alive, in public view"],["Drilling experts","Freedom to try more than one method"]],n:"Bring every miner out alive.",x:"Unstable rock, a depth never attempted before, and little food below.",v:"Rescuers ran three drilling plans in parallel so one failure would not stop the effort. After 69 days all 33 were lifted out one by one in a narrow steel capsule."},
+corp:{t:"LEGO's Turnaround",y:"2004",p:"LEGO was losing money heavily and close to collapse. It had spread into theme parks, clothing, video games and thousands of specialised parts.",l:"Billund, Denmark",s:[["The owning family","The company kept alive and independent"],["Employees","Jobs and a clear direction"],["Retailers","Sets that sell"],["Fans and children","The classic building experience"]],n:"Return the company to profit.",x:"Cash was running out and the brand could not be damaged.",v:"A new chief executive cut the number of different parts roughly in half, sold a majority stake in the theme parks, and refocused on the core brick sets."}
+};
+
+let S={step:0,inst:null,grade:null,cat:null,discs:[],engType:null,year:null,nGroups:4,nMembers:4,groups:[],mode:null,result:null,opened:[],game:null,gi:0};
+let loading=false, dealMsg='';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const stk=s=>typeof s==='string'?{name:s,need:''}:{name:String((s&&s.name)||''),need:String((s&&(s.need||s.main_need))||''),d:(s&&s.d&&Array.isArray(s.d.needs))?s.d:undefined};
+const EXTRAS=[["Local journalist","A clear, accurate story the public can follow"],["Budget auditor","Every cost justified and nothing wasted"],["Safety inspector","No new risk to anyone involved"],["Environmental advocate","No lasting damage to nature"],["Accessibility advocate","A solution people with disabilities can use too"],["Future users","A solution that still works ten years from now"],["Neutral mediator","An agreement every side can accept"],["Maintenance crew","Something simple to keep running after day one"]];
+function padStakeholders(c){
+  const seen=new Set();
+  c.stakeholders=c.stakeholders.map(stk).filter(s=>{const k=s.name.trim().toLowerCase();if(!k||seen.has(k))return false;seen.add(k);return true});
+  for(const [name,need] of shuffle(EXTRAS)){if(c.stakeholders.length>=S.nMembers)break;if(!seen.has(name.toLowerCase())){seen.add(name.toLowerCase());c.stakeholders.push({name,need})}}
+}
+const needsMissing=R=>R.cases.some(c=>c.stakeholders.some(s=>!stk(s).need.trim()));
+function dealRoles(R){
+  let changed=false;
+  R.cases.forEach(c=>{const before=JSON.stringify(c.stakeholders);padStakeholders(c);if(JSON.stringify(c.stakeholders)!==before)changed=true});
+  const ok=!changed&&Array.isArray(R.assign)&&R.assign.length===S.nGroups&&R.assign.every(a=>Array.isArray(a)&&a.length===S.nMembers);
+  if(ok)return;
+  R.assign=S.groups.map((g,i)=>{const c=R.cases[R.mode==='hist'?0:i];const order=shuffle(c.stakeholders.map((_,k)=>k));return Array.from({length:S.nMembers},(_,j)=>order[j%order.length])});
+}
+function roleRows(g,i,c){
+  const a=S.result.assign[i], any=g.members.some(m=>m.trim());
+  return g.members.map((m,j)=>({n:m.trim()||(any?'':'Member '+(j+1)),s:stk(c.stakeholders[a[j]])})).filter(r=>r.n);
+}
+function rolesHtml(g,i,c){
+  return `<div class="roles"><div class="label">Who speaks for whom</div>${roleRows(g,i,c).map(r=>`<div class="role"><b>${esc(r.n)}</b><div><span class="k">Stakeholder</span>${esc(r.s.name)}</div><div class="k">Description</div><p class="para">${esc(descOf(r.s,c).text)}</p></div>`).join('')}</div>`;
+}
+function save(){try{localStorage.setItem('caseroom',JSON.stringify(S))}catch(e){}}
+function ensureGroups(){
+  while(S.groups.length<S.nGroups)S.groups.push({name:'Group '+LETTERS[S.groups.length],members:[]});
+  S.groups.length=S.nGroups;
+  S.groups.forEach(g=>{while(g.members.length<S.nMembers)g.members.push('');g.members.length=S.nMembers});
+}
+const skipDetails=()=>S.inst==='workshop'||S.inst==='corp';
+function audText(){
+  if(S.inst==='school')return `School, Grade ${S.grade}, ${NAME[S.cat]}`;
+  if(S.inst==='uni'){let d=S.discs.map(k=>k==='engr'&&S.engType?`${S.engType} Engineering`:NAME[k]).join(' + ');return `University, ${d}${S.year?', '+S.year:''}`}
+  return S.inst==='workshop'?'Workshop / Seminar':'Corporate';
+}
+function primaryKeys(){return S.inst==='school'?[S.cat]:S.inst==='uni'?S.discs.slice():S.inst==='workshop'?['work']:['corp']}
+function canNext(){
+  if(S.step===0)return !!S.inst;
+  if(S.step===1)return S.inst==='school'?!!(S.grade&&S.cat):S.discs.length>0;
+  if(S.step===3)return !!S.mode;
+  return true;
+}
+
+/* ---------- render ---------- */
+function rail(){
+  if(!$('#rail'))return;
+  $('#rail').innerHTML=STEPS.map((t,i)=>{
+    const sk=i===1&&S.inst&&skipDetails();
+    const cls=i===S.step?'now':sk?'skip':i<S.step?'done':'';
+    const can=i<S.step&&!sk&&!loading;
+    return `<li class="${cls}"><button ${can?`data-act="goto" data-i="${i}"`:'disabled'} ${i===S.step?'aria-current="step"':''}><span class="n">${i+1}</span><span class="lbl">${i+1} ${t}</span></button>${i<STEPS.length-1?'<span class="wire"></span>':''}</li>`}).join('');
+}
+function chips(act,list,sel,multi){
+  return `<div class="chips">${list.map(([v,l])=>`<button class="chip" data-act="${act}" data-v="${esc(v)}" aria-pressed="${multi?sel.includes(v):sel===v}">${esc(l)}</button>`).join('')}</div>`;
+}
+function navRow(nextLabel){
+  return `<div class="nav">${S.step>0?'<button class="btn" data-act="back">Back</button>':'<span></span>'}
+  <button class="btn go" data-act="next" ${canNext()?'':'disabled'}>${nextLabel||'Continue'}</button></div>`;
+}
+function vAudience(){
+  return `<h1 class="q">Who's playing <em>today?</em></h1>
+  <p class="sub">Set up your session in under a minute. Each group ends up with a case file: a problem, a place, the people involved, and what they need.</p>
+  <div class="tiles">${INST.map(o=>`<button class="tile" data-act="inst" data-v="${o.id}" aria-pressed="${S.inst===o.id}"><b>${o.t}</b><span>${o.d}</span></button>`).join('')}</div>
+  ${navRow()}`;
+}
+function vDetails(){
+  if(S.inst==='school')return `<h1 class="q">Which <em>class?</em></h1>
+  <div class="block"><div class="label">Grade</div>${chips('grade',[9,10,11,12].map(g=>[g,'Grade '+g]),S.grade)}</div>
+  <div class="block"><div class="label">Course</div>${chips('cat',CATS,S.cat)}</div>${navRow()}`;
+  return `<h1 class="q">Which <em>discipline?</em></h1>
+  <div class="block"><div class="label">Disciplines, pick one or more</div>${chips('disc',DISCS,S.discs,true)}</div>
+  ${S.discs.includes('engr')?`<div class="block"><div class="label">Engineering type, optional</div>${chips('eng',ENGT.map(e=>[e,e]),S.engType)}</div>`:''}
+  <div class="block"><div class="label">Year, optional</div>${chips('year',['Y1','Y2','Y3','Y4','Y5'].map(y=>[y,y]),S.year)}</div>${navRow()}`;
+}
+function stepper(key,label,min,max){
+  return `<div class="stepper"><div><div class="label">${label}</div></div><div class="ctl">
+  <button class="rnd" data-act="bump" data-k="${key}" data-d="-1" aria-label="Fewer ${label}" ${S[key]<=min?'disabled':''}>−</button>
+  <output id="out-${key}">${S[key]}</output>
+  <button class="rnd" data-act="bump" data-k="${key}" data-d="1" aria-label="More ${label}" ${S[key]>=max?'disabled':''}>+</button></div></div>`;
+}
+function vTeams(){
+  ensureGroups();
+  return `<h1 class="q">Build the <em>teams.</em></h1>
+  <div class="steppers">${stepper('nGroups','Groups',1,12)}${stepper('nMembers','Members per group',1,20)}</div>
+  <details class="paste" id="pastebox"><summary>Have a class list? Paste it and deal the names out at random</summary>
+    <div class="in"><label class="label" for="classlist">One name per line, or separated by commas</label>
+    <textarea id="classlist" placeholder="Omar&#10;Laila&#10;Youssef&#10;Nour"></textarea>
+    <div><button class="btn sm" data-act="deal">Deal names into ${S.nGroups} groups</button></div></div></details>
+  <div class="msg" id="dealmsg" role="status">${esc(dealMsg)}</div>
+  <div class="block"><div class="label">Rename groups and type member names. Names are optional.</div>
+  <div class="roster">${S.groups.map((g,i)=>`<div class="team" style="--g:${COLORS[i%12]}">
+    <input type="text" class="gname" id="g${i}name" data-g="${i}" value="${esc(g.name)}" aria-label="Name of group ${i+1}" maxlength="30">
+    ${g.members.map((m,j)=>`<input type="text" class="m" id="g${i}m${j}" data-g="${i}" data-m="${j}" value="${esc(m)}" placeholder="Member ${j+1}" aria-label="${esc(g.name)} member ${j+1}" maxlength="40">`).join('')}
+  </div>`).join('')}</div></div>${navRow()}`;
+}
+function summary(){
+  return `<div class="sum"><span>${esc(audText())}</span><span>${S.nGroups} group${S.nGroups>1?'s':''}</span><span>${S.nMembers} per group</span>${S.mode&&S.step===4?`<span>${S.mode==='hist'?'Historical case':'Generated scenarios'}</span>`:''}</div>`;
+}
+function vMode(){
+  if(loading)return `<div class="loading"><h1 class="q">Writing the <em>case files…</em></h1><div class="bar"><i></i></div><p class="sub" role="status">Preparing ${S.mode==='hist'?'one real case for everyone':S.nGroups+' scenarios of equal difficulty'}. ${AI.local?'The AI on this laptop is writing them and the stakeholder descriptions. This can take a few minutes.':'The AI is writing them, so this can take up to a minute.'}</p></div>`;
+  return `<h1 class="q">Pick the <em>case mode.</em></h1>${summary()}
+  <div class="tiles">
+   <button class="tile" data-act="mode" data-v="hist" aria-pressed="${S.mode==='hist'}"><b>Historical case study</b><span>Everyone gets the same real, already-solved case. Each group must find a different solution from the one history chose.</span></button>
+   <button class="tile" data-act="mode" data-v="gen" aria-pressed="${S.mode==='gen'}"><b>Generate scenarios</b><span>Each group gets its own scenario. All scenarios share the same scope and difficulty.</span></button>
+  </div>${qnStepper()}${navRow('Deal the cases')}`;
+}
+function whoHtml(g){
+  const named=g.members.map(m=>m.trim()).filter(Boolean);
+  return `<div class="who">${named.length?named.map(n=>`<span>${esc(n)}</span>`).join(''):`<span>${S.nMembers} member${S.nMembers>1?'s':''}</span>`}</div>`;
+}
+function briefHtml(c,shared){
+  return `<div class="brief"><h3>${esc(c.title)}${c.year?` <span class="src">${esc(c.year)}</span>`:''}</h3><dl>
+   <div><dt>Problem</dt><dd>${esc(c.problem)}</dd></div>
+   <div><dt>Location</dt><dd>${esc(c.location)}</dd></div>
+   <div><dt>Stakeholders</dt><dd><ul>${c.stakeholders.map(s=>`<li>${esc(stk(s).name)}</li>`).join('')}</ul></dd></div>
+   <div><dt>Overall need</dt><dd>${esc(c.needs)}</dd></div>
+   <div><dt>Limitations</dt><dd>${esc(c.limits)}</dd></div></dl>
+   ${shared&&c.solved?`<div class="solved"><div class="label">How it was actually solved</div><div>${esc(c.solved)}</div></div><div class="mission">Your mission: that solution is taken. Argue from your stakeholder's side and agree on a different one within the limits.</div>`:''}</div>`;
+}
+function vCases(){
+  const R=S.result; if(!R)return vMode();
+  ensureGroups(); dealRoles(R);
+  const src=`<p class="src">${R.source==='claude'?'Written by AI for this session.':'AI was not available, so these come from the built-in case bank.'}</p>`;
+  const acts=`<div class="acts">
+    <button class="btn go" data-act="play">Start Stage 1</button>
+    ${R.mode==='gen'&&S.opened.length<S.nGroups?'<button class="btn sm" data-act="openall">Open all files</button>':''}
+    <button class="btn sm" data-act="copy">Copy all briefs</button>
+    <button class="btn sm" data-act="regen">Deal new cases</button>
+    <button class="btn sm" data-act="goto" data-i="2">Edit teams</button>
+    <button class="btn sm" data-act="reset">Start over</button></div><div class="msg" id="copymsg" role="status"></div>`;
+  if(R.mode==='hist'){
+    const c=R.cases[0];
+    return `<h1 class="q">One case. <em>${S.nGroups} answer${S.nGroups>1?'s':''}.</em></h1>${summary()}${src}
+    <div class="file shared"><div class="head"><b>Shared case file</b><code>REAL CASE</code></div>${briefHtml(c,true)}</div>
+    <div class="label">Teams</div>
+    <div class="files">${S.groups.map((g,i)=>`<div class="file" style="--g:${COLORS[i%12]}"><div class="head"><b>${esc(g.name)}</b><code>TEAM ${String(i+1).padStart(2,'0')}</code></div>${rolesHtml(g,i,c)}</div>`).join('')}</div>${acts}`;
+  }
+  return `<h1 class="q">Case files <em>dealt.</em></h1>${summary()}${src}
+  <div class="files">${S.groups.map((g,i)=>{const open=S.opened.includes(i);return `<div class="file" style="--g:${COLORS[i%12]}"><div class="head"><b>${esc(g.name)}</b><code>CASE ${String(i+1).padStart(2,'0')}</code></div>
+   ${open?briefHtml(R.cases[i])+rolesHtml(g,i,R.cases[i]):whoHtml(g)+`<div class="sealed"><span class="stamp">Sealed</span><button class="btn go" data-act="open" data-i="${i}">Open case file</button></div>`}</div>`}).join('')}</div>${acts}`;
+}
+function render(){
+  if(S.step!==aiStep){aiStep=S.step;aiMsg=''}
+  rail();
+  $('#app').innerHTML=[vAudience,vDetails,vTeams,vMode,vCases,vS1,vS2,vS3,vS4,vS5,vResults][S.step]();
+  save();
+}
+
+/* ---------- case generation ---------- */
+/* ---------- AI: the Python server on this laptop (Ollama), or Claude when the page runs inside Claude ---------- */
+const AI_BASE=location.protocol==='http:'?'':'http://localhost:5000';
+const AI={local:false,claude:false,model:'',checking:false};
+let sampleP=null;
+function getSample(){
+  if(!sampleP&&window.claude&&typeof window.claude.use==='function'){try{sampleP=window.claude.use('sample').catch(()=>null)}catch(e){sampleP=null}}
+  const wait=new Promise(r=>setTimeout(()=>r(null),12000));
+  return sampleP?Promise.race([sampleP,wait]):Promise.resolve(null);
+}
+function setAIStatus(){
+  const el=document.getElementById('aistat'); if(!el)return;
+  el.innerHTML=AI.checking?'AI: checking…':AI.local?`AI: on (laptop · ${esc(AI.model)})`:AI.claude?'AI: on':'AI: off (built-in cases, hand scoring)<button class="linkbtn" data-act="aicheck">Retry</button>';
+}
+async function checkAI(){
+  AI.checking=true; setAIStatus();
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),2500);
+  try{const r=await fetch(AI_BASE+'/api/health',{signal:ac.signal,cache:'no-store'});const j=await r.json();AI.local=!!j.ok;AI.model=j.model||''}
+  catch(e){AI.local=false}
+  finally{clearTimeout(t)}
+  if(!AI.local)AI.claude=!!(await getSample());
+  AI.checking=false; setAIStatus();
+}
+async function askLocal(prompt,json,ms){
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);
+  try{
+    const r=await fetch(AI_BASE+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,json}),signal:ac.signal});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.error||'AI server error');
+    return j.text||'';
+  }finally{clearTimeout(t)}
+}
+/* Ask the AI for JSON. Returns the parsed value, or null when no AI answered. A laptop model gets 4x the time. */
+async function aiJson(prompt,ms){
+  ms=ms||60000;
+  if(AI.local){
+    try{
+      let j=parseJson(await askLocal(prompt+'\n\nWrap your whole answer as one JSON object: {"result": <the JSON asked for above>}.',true,ms*4));
+      if(j&&!Array.isArray(j)&&j.result!==undefined)j=j.result;
+      return j;
+    }catch(e){return null}
+  }
+  const sample=await getSample(); if(!sample)return null;
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);
+  try{const r=await sample(prompt,{cache:false,signal:ac.signal});return parseJson(r.text||'')}catch(e){return null}finally{clearTimeout(t)}
+}
+function norm(o){
+  if(!o||typeof o!=='object')return null;
+  const st=(Array.isArray(o.stakeholders)?o.stakeholders:[]).map(stk).filter(s=>s.name).slice(0,12);
+  if(!o.title||!o.problem||!o.location||!st.length||st.some(s=>!s.need.trim())||!o.needs||!o.limits)return null;
+  return {title:String(o.title),problem:String(o.problem),location:String(o.location),stakeholders:st,needs:String(o.needs),limits:String(o.limits),year:o.year?String(o.year):'',solved:o.solved?String(o.solved):''};
+}
+function parseJson(t){
+  const a=t.indexOf('['),b=t.indexOf('{');
+  const start=(a>=0&&(b<0||a<b))?a:b; if(start<0)throw new Error('no json');
+  const end=Math.max(t.lastIndexOf(']'),t.lastIndexOf('}'));
+  return JSON.parse(t.slice(start,end+1));
+}
+async function fromClaude(avoid){
+  const aud=audText(), n=S.nGroups, K=Math.min(12,Math.max(3,S.nMembers));
+  const level=S.inst==='school'
+   ?`Difficulty: EASY. The players are school students aged about ${(S.grade||10)+5}. Pick a simple, everyday problem from school, home or neighbourhood life that they already understand. It must need no technical or specialist knowledge and no calculations beyond basic arithmetic. Write in short sentences with common words, and keep the problem to 2 short sentences. Stakeholders must be familiar people such as students, parents, teachers, neighbours or shop owners, each with a simple, obvious need. Grade 9 is the easiest and grade 12 only slightly richer.`
+   :S.inst==='uni'
+   ?`Difficulty: university level${S.year?', year '+S.year.slice(1)+' of study (Y1 is introductory, later years more demanding)':''}. Use a realistic professional problem that draws on knowledge of the discipline.`
+   :`Difficulty: moderate. A realistic workplace or community problem that adults with no special training can discuss.`;
+  const fields=`"title" (at most 5 words), "problem" (2 to 3 plain sentences), "location" (one specific place, a short phrase), "stakeholders" (array of exactly ${K} objects, each with "name" (a short label for a person or group with a real stake) and "need" (that stakeholder's own main need in one short sentence, specific enough that a player can argue from their side; the needs should pull in different directions; every stakeholder in a case must be different and every one must have a need)), "needs" (one sentence on the overall need), "limits" (one sentence on the main constraints)`;
+  const no=avoid.length?` Do not reuse these: ${avoid.join('; ')}.`:'';
+  const prompt=S.mode==='hist'
+   ?`You prepare cases for a classroom problem-solving game. Audience: ${aud}. ${level} Choose ONE real, well-documented, already-solved historical case that suits this audience's subject and level. State only facts you are confident are accurate.${no} Groups will be asked to find alternative solutions. Return only a JSON object with keys ${fields}, "year" (string), and "solved" (2 to 3 sentences on how it was actually solved). No other text.`
+   :`You write cases for a classroom problem-solving game. Audience: ${aud}. ${level} There are ${n} groups of about ${S.nMembers} people. Write ${n} different fictional but realistic problem scenarios, one per group. All must have the same scope and difficulty, suit this audience's subject and level, and be workable by discussion in about 30 minutes. Do not include solutions.${no} Return only a JSON array of exactly ${n} objects with keys ${fields}. No other text.`;
+  try{
+    let j=await aiJson(prompt,45000); if(!j)return null;
+    if(!Array.isArray(j)&&Array.isArray(j.cases))j=j.cases;
+    if(S.mode==='hist'){const c=norm(Array.isArray(j)?j[0]:j);return c&&c.solved?[c]:null}
+    if(!Array.isArray(j))return null;
+    const cs=j.map(norm).filter(Boolean);
+    return cs.length>=n?cs.slice(0,n):null;
+  }catch(e){return null}
+}
+const fromBank=o=>({title:o.t,problem:o.p,location:o.l,stakeholders:o.s.map(([name,need])=>({name,need})),needs:o.n,limits:o.x,year:o.y||'',solved:o.v||''});
+function bankCases(avoid){
+  const prim=primaryKeys(), fam=FAMILY[S.inst];
+  const order=[...shuffle(prim),...shuffle(fam.filter(k=>!prim.includes(k))),...shuffle(Object.keys(BANK).filter(k=>!fam.includes(k)&&!prim.includes(k)))];
+  if(S.mode==='hist'){
+    const k=order.find(k=>!avoid.includes(HIST[k].t))||order[0];
+    return [fromBank(HIST[k])];
+  }
+  let pool=[]; order.forEach(k=>{pool=pool.concat(shuffle(BANK[k]))});
+  const fresh=pool.filter(c=>!avoid.includes(c.t));
+  if(fresh.length>=S.nGroups)pool=fresh;
+  return Array.from({length:S.nGroups},(_,i)=>fromBank(pool[i%pool.length]));
+}
+async function generate(){
+  const avoid=S.result&&S.result.mode===S.mode?S.result.cases.map(c=>c.title):[];
+  loading=true; S.step=3; render();
+  let cases=await fromClaude(avoid), source='claude';
+  if(!cases){cases=bankCases(avoid);source='bank'}
+  S.result={mode:S.mode,source,cases}; dealRoles(S.result); await enrichCases(S.result.cases); loading=false; S.opened=[]; S.game=null; S.step=4; render();
+  window.scrollTo({top:0,behavior:'auto'});
+}
+function briefsText(){
+  const R=S.result, line=c=>`${c.title}${c.year?' ('+c.year+')':''}\nProblem: ${c.problem}\nLocation: ${c.location}\nStakeholders: ${c.stakeholders.map(s=>stk(s).name).join(', ')}\nOverall need: ${c.needs}\nLimitations: ${c.limits}${c.solved?'\nHow it was solved: '+c.solved:''}`;
+  const team=(g,i)=>g.name+'\n'+roleRows(g,i,R.cases[R.mode==='hist'?0:i]).map(r=>{const dd=descOf(r.s,R.cases[R.mode==='hist'?0:i]);return `- ${r.n}\n  Stakeholder: ${r.s.name}\n  Description: ${dd.text}`}).join('\n');
+  if(R.mode==='hist')return `SCENARIO | ${audText()}\n\nShared case: ${line(R.cases[0])}\n\n${S.groups.map(team).join('\n\n')}`;
+  return `SCENARIO | ${audText()}\n\n`+S.groups.map((g,i)=>`${line(R.cases[i])}\n${team(g,i)}`).join('\n\n');
+}
+
+/* ---------- game stages 1 to 5 + results ---------- */
+const QF=[["Obstacle","Your main investor pulls out. Half your budget is gone."],["Obstacle","A sudden time constraint: the deadline moves up by 40%."],["Obstacle","The land or site you planned to use is taken by someone else."],["Opportunity","A new investor offers to cover the gap, but with tough requests: faster delivery and a say in the design."],["Obstacle","The most powerful stakeholder turns against your plan in public."],["Opportunity","A well-known organisation offers free expertise, but only if it leads the project."],["Obstacle","A new rule makes a key part of your solution illegal."],["Obstacle","Your main supplier fails two weeks before launch."],["Opportunity","The media picks up your story and thousands want to join, far faster than you planned for."],["Obstacle","A test shows your solution works only half as well as you claimed."]];
+const RF=["Revise your solution so it covers the stakeholder you dropped.","Your budget is cut by 30%. Keep what matters most and explain the trade-offs.","Explain how your solution would scale to ten times as many people."];
+const DUR={5:600,6:900,7:1500,9:120};
+const caseOf=i=>S.result.cases[S.result.mode==='hist'?0:i];
+function ensureGame(){
+  if(!S.game)S.game={note:'',presMin:5,rf:'',t:{},d:[]};
+  const G=S.game; G.t=G.t||{}; if(!G.presMin)G.presMin=5;
+  while(G.d.length<S.nGroups)G.d.push({a:{},ok:{},rev:false,b:[{t:'',w:'',s:0,fb:''}],c:{st:'',how:'',meets:'',drop:'',s1:0,s2:0,s3:0,fb:''},p:0,q:[],adj:0,rf:'',rs:0,rfb:''});
+  G.d.length=S.nGroups; if(!(S.gi>=0&&S.gi<S.nGroups))S.gi=0;
+}
+/* timers: stages 1, 2, 3 and 5 start on their own from a saved end time (no pause, no reset, survive going back); stage 4 has a settable timer */
+const tfmt=n=>String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+const tleft=st=>Math.max(0,Math.ceil((S.game.t[st]-Date.now())/1000));
+let T={step:-1,left:0,run:false,iv:null}, aiBusy='', aiMsg='', aiStep=-1;
+function resetTimer(){clearInterval(T.iv);T={step:-1,left:0,run:false,iv:null}}
+function timerHtml(){
+  const G=S.game,st=S.step;
+  if(st===8){
+    const d=G.presMin*60; if(T.step!==8){clearInterval(T.iv);T={step:8,left:d,run:false,iv:null}}
+    return `<div class="timer" role="timer"><output id="tm" class="${T.left===0?'zero':''}">${tfmt(T.left)}</output><button class="btn sm" data-act="tgo">${T.run?'Pause':T.left===d?'Start timer':'Resume'}</button><button class="btn sm" data-act="trst">Reset</button></div><div class="steppers">${gstep('presMin','Minutes to present',1,30)}</div>`;
+  }
+  const d=DUR[st]; if(!d)return '';
+  if(!G.t[st]){G.t[st]=Date.now()+d*1000;save()}
+  const l=tleft(st);
+  return `<div class="timer" role="timer"><output id="tm" class="${l===0?'zero':''}">${tfmt(l)}</output></div>`;
+}
+setInterval(()=>{
+  if(!S.game||S.step===8||!S.game.t||!S.game.t[S.step])return;
+  const o=$('#tm'); if(!o)return; const l=tleft(S.step); o.textContent=tfmt(l); o.classList.toggle('zero',l===0);
+},500);
+
+const sum=t=>t.s1+t.s2+t.s3+t.s4+t.s5+t.s6;
+const tot=(G,d)=>({s1:Object.values(d.ok).filter(v=>v===1).length,s2:d.b.reduce((a,x)=>a+(+x.s||0),0),s3:(+d.c.s1||0)+(+d.c.s2||0)+2*(+d.c.s3||0),s4:+d.p||0,s5:d.q.reduce((a,x)=>a+(+x.s||0),0),s6:+d.rs||0});
+function descBlock(dd){return `<div class="desc"><b>Needs</b><ul>${dd.needs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><b>Limitations</b><ul>${dd.limits.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`}
+function tabs(){return `<div class="chips" role="group" aria-label="Choose group">${S.groups.map((g,i)=>`<button class="chip" data-act="gi" data-v="${i}" aria-pressed="${S.gi===i}">${esc(g.name)}</button>`).join('')}</div>`}
+function caseCard(i){const c=caseOf(i);return `<details class="paste"><summary>Case file: ${esc(c.title)}</summary>${briefHtml(c,false)}</details>`}
+function head(n,title,mins,lead){return `<div class="block"><div class="label">Stage ${n} of 5${mins?' · '+mins+' min':''}</div><h1 class="q">${title}</h1><p class="sub">${lead}</p></div>`}
+function gstep(k,label,min,max){const G=S.game;return `<div class="stepper"><div class="label">${label}</div><div class="ctl"><button class="rnd" data-act="gset" data-k="${k}" data-d="-1" aria-label="Less: ${label}" ${G[k]<=min?'disabled':''}>−</button><output>${G[k]}</output><button class="rnd" data-act="gset" data-k="${k}" data-d="1" aria-label="More: ${label}" ${G[k]>=max?'disabled':''}>+</button></div></div>`}
+function qnStepper(){const n=S.nQ||1;return `<div class="steppers"><div class="stepper"><div class="label">Quickfire scenarios per group</div><div class="ctl"><button class="rnd" data-act="qn" data-d="-1" aria-label="Fewer scenarios" ${n<=1?'disabled':''}>−</button><output>${n}</output><button class="rnd" data-act="qn" data-d="1" aria-label="More scenarios" ${n>=2?'disabled':''}>+</button></div></div></div>`}
+const numIn=(p,v,max,min)=>`<input type="number" min="${min||0}" max="${max}" data-p="${p}" data-n data-max="${max}" data-min="${min||0}" value="${+v||0}">`;
+const area=(p,v,ph)=>`<textarea data-p="${p}" placeholder="${ph}" aria-label="${ph}" maxlength="700">${esc(v)}</textarea>`;
+const aiBtn=(k,label)=>`<button class="btn go sm" data-act="ai" data-v="${k}" ${aiBusy?'disabled':''}>${aiBusy===k?'AI is grading…':label}</button>`;
+const aiNote=()=>`<div class="msg" role="status">${esc(aiMsg)}</div>`;
+
+function vS1(){
+  if(!S.result)return vMode(); ensureGame();
+  const G=S.game,i=S.gi,d=G.d[i],c=caseOf(i),sts=c.stakeholders.map(stk);
+  const mark=(key,t)=>d.rev&&t.trim()?`<div class="jg"><button class="btn sm" data-act="ok" data-key="${key}" data-v="1" aria-pressed="${d.ok[key]===1}">✓ Correct</button><button class="btn sm" data-act="ok" data-key="${key}" data-v="-1" aria-pressed="${d.ok[key]===-1}">✗ Incorrect</button></div>`:'';
+  const inp=(key,ph)=>`<div class="ans"><input type="text" data-p="d.${i}.a.${key}" value="${esc(d.a[key]||'')}" placeholder="${ph}" aria-label="${ph}" maxlength="140">${mark(key,d.a[key]||'')}</div>`;
+  const cards=sts.map((s,k)=>{
+    const dd=descOf(s,c), bad=[0,1,2].some(j=>d.ok[k+'n'+j]===-1)||[0,1].some(j=>d.ok[k+'c'+j]===-1);
+    return `<div class="stk"><h3>${esc(s.name)}</h3><details class="paste"><summary>Read the description</summary><p class="para">${esc(dd.text)}</p></details>
+    <div class="two"><div><div class="label">3 main needs</div>${[0,1,2].map(j=>inp(k+'n'+j,'Need '+(j+1))).join('')}</div><div><div class="label">2 main limitations</div>${[0,1].map(j=>inp(k+'c'+j,'Limitation '+(j+1))).join('')}</div></div>
+    ${bad?`<div class="solved"><div class="label">Model answer</div>${descBlock(dd)}</div>`:''}</div>`}).join('');
+  return `${head(1,'Know your <em>stakeholders.</em>',10,'Read each description closely. Pull out the 3 main needs and the 2 main limitations hidden in it.')}
+  ${tabs()}${caseCard(i)}${timerHtml()}
+  <div class="stk-list">${cards}</div>
+  <div class="acts">${aiBtn('s1','Grade with AI')}<button class="btn sm" data-act="rev">${d.rev?'Hide hand-judging':'Judge by hand'}</button><span class="src">Stage 1 score: ${tot(G,d).s1} pts (1 per correct answer)</span></div>${aiNote()}${navRow('Next: Benchmarking')}`;
+}
+function vS2(){
+  if(!S.result)return vMode(); ensureGame();
+  const G=S.game,i=S.gi,d=G.d[i];
+  return `${head(2,'Find your <em>benchmark.</em>',15,'Give a real case that faced a similar problem. Points depend on how valid and relevant it is. Adding more benchmarks is optional.')}
+  ${tabs()}${caseCard(i)}${timerHtml()}
+  <div class="two">${d.b.map((b,j)=>`<div class="stk"><h3>Benchmark ${j+1}</h3>
+   <input type="text" data-p="d.${i}.b.${j}.t" value="${esc(b.t)}" placeholder="Real case: name, place, year" aria-label="Benchmark ${j+1} case" maxlength="120">
+   ${area(`d.${i}.b.${j}.w`,b.w,'Why is it valid and relevant? What can we learn from it?')}
+   <label class="score">Score (0 to 10) ${numIn(`d.${i}.b.${j}.s`,b.s,10)}</label>${b.fb?`<div class="fb">${esc(b.fb)}</div>`:''}
+   ${j>0?`<div><button class="btn sm" data-act="delb" data-v="${j}">Remove</button></div>`:''}</div>`).join('')}</div>
+  <div class="acts">${aiBtn('s2','Grade with AI')}${d.b.length<3?'<button class="btn sm" data-act="addb">Add another benchmark (optional)</button>':''}</div>${aiNote()}${navRow('Next: Conceptualisation')}`;
+}
+function vS3(){
+  if(!S.result)return vMode(); ensureGame();
+  const G=S.game,i=S.gi,d=G.d[i],c=d.c,p=k=>`d.${i}.c.${k}`;
+  return `${head(3,'Build the <em>concept.</em>',25,'Write your solution and defend it. Be honest about what you had to drop: that part is very critical.')}
+  ${tabs()}${caseCard(i)}${timerHtml()}
+  <div class="stk"><div class="label">Solution statement</div>${area(p('st'),c.st,'One or two sentences: what is your solution?')}
+   <div class="label">How does it work?</div>${area(p('how'),c.how,'Steps, parts, who does what')}
+   <div class="label">How does it meet the needs and targets?</div>${area(p('meets'),c.meets,'Link it to each stakeholder need and to the limits')}
+   <div class="label">What was dropped or not addressed? (e.g. a stakeholder need) <b style="color:var(--warn)">Very critical</b></div>${area(p('drop'),c.drop,'Name what you gave up and why')}</div>
+  <div class="acts">${aiBtn('s3','Grade with AI')}</div>${aiNote()}
+  <div class="steppers"><label class="stepper score">How it works ${numIn(p('s1'),c.s1,10)}</label><label class="stepper score">Meets needs ${numIn(p('s2'),c.s2,10)}</label><label class="stepper score">Dropped (counts double) ${numIn(p('s3'),c.s3,10)}</label></div>
+  ${c.fb?`<div class="fb">${esc(c.fb)}</div>`:''}<p class="src">Scores out of 10 each. Stage 3 total: ${tot(G,d).s3} pts.</p>${navRow('Next: Presentation')}`;
+}
+function vS4(){
+  if(!S.result)return vMode(); ensureGame();
+  const G=S.game,i=S.gi,d=G.d[i],c=d.c,g=S.groups[i];
+  return `${head(4,'Present and <em>discuss.</em>','','Each group presents its solution, then the room opens a discussion. Set the time, then use Next group to move through the order.')}
+  ${tabs()}${timerHtml()}
+  <div class="file" style="--g:${COLORS[i%12]}"><div class="head"><b>${esc(g.name)} presenting</b><code>${i+1} / ${S.nGroups}</code></div><div class="brief"><h3>${esc(caseOf(i).title)}</h3><dl>
+   <div><dt>Solution</dt><dd>${esc(c.st)||'<span class="src">Nothing written in Stage 3.</span>'}</dd></div>
+   <div><dt>How it works</dt><dd>${esc(c.how)||'-'}</dd></div><div><dt>What was dropped</dt><dd>${esc(c.drop)||'-'}</dd></div></dl></div></div>
+  <div class="solved"><div class="label">Open discussion prompts</div><ul style="margin:6px 0 0;padding-left:18px"><li>Which stakeholder gains the least from this solution?</li><li>What would you do differently with double the budget?</li><li>What is the first thing that could go wrong?</li></ul></div>
+  <label class="score">Presentation score (0 to 10) ${numIn(`d.${i}.p`,d.p,10)}</label>
+  <div class="acts"><button class="btn sm" data-act="nextg">Next group</button></div>${navRow('Next: Quickfire round')}`;
+}
+function dealQuick(){
+  const G=S.game,nq=S.nQ||1;
+  G.d.forEach(d=>{while(d.q.length<nq){
+    const mine=new Set(d.q.map(x=>x.sc[1])),others=new Set(G.d.flatMap(y=>y.q.map(x=>x.sc[1])));
+    const fresh=QF.filter(x=>!mine.has(x[1])&&!others.has(x[1])),ok=QF.filter(x=>!mine.has(x[1]));
+    d.q.push({sc:shuffle(fresh.length?fresh:ok)[0],ans:'',s:0,fb:''})}});
+}
+function vS5(){
+  if(!S.result)return vMode(); ensureGame(); dealQuick();
+  const G=S.game,i=S.gi,d=G.d[i],nq=S.nQ||1;
+  const cards=d.q.slice(0,nq).map((x,j)=>`<div class="file"><div class="head" style="--g:#8F6A4C"><b>${esc(x.sc[0])}</b><code>SCENARIO ${j+1}</code></div><div class="brief"><p style="margin:0;font-size:20px;font-weight:600">${esc(x.sc[1])}</p>
+   <div class="mission">This hits your solution${d.c.st?': “'+esc(d.c.st)+'”':''}. Think and decide, then say what you do and why.</div>
+   ${area(`d.${i}.q.${j}.ans`,x.ans,'Your decision and your reasons')}
+   <label class="score">Justification score (0 to 10) ${numIn(`d.${i}.q.${j}.s`,x.s,10)}</label>${x.fb?`<div class="fb">${esc(x.fb)}</div>`:''}</div></div>`).join('');
+  return `${head(5,'Quickfire <em>round.</em>',2,'Each group gets a surprise on the spot, an opportunity or an obstacle, picked at random. There is no right or wrong answer: points reward how well you justify your choice.')}
+  ${tabs()}${timerHtml()}<div class="files">${cards}</div>
+  <div class="acts">${aiBtn('s5','Grade with AI')}</div>${aiNote()}${navRow('See total score')}`;
+}
+function vResults(){
+  if(!S.result)return vMode(); ensureGame();
+  const G=S.game;
+  const rows=S.groups.map((g,i)=>{const t=tot(G,G.d[i]),a=+G.d[i].adj||0;return {g,i,...t,a,total:sum(t)+a}}).sort((x,y)=>y.total-x.total);
+  return `<h1 class="q">Total <em>score.</em></h1>${summary()}
+  ${rows[0]&&rows[0].total>0?`<p class="mission">Top score: ${esc(rows[0].g.name)} with ${rows[0].total} pts.</p>`:''}
+  <div class="tbl"><table><thead><tr><th>#</th><th>Group</th><th>Stakeholders</th><th>Benchmark</th><th>Concept</th><th>Present</th><th>Quickfire</th><th>Refine</th><th>Adjust</th><th>Total</th></tr></thead><tbody>
+  ${rows.map((r,n)=>`<tr><td>${n+1}</td><td><b>${esc(r.g.name)}</b></td><td>${r.s1}</td><td>${r.s2}</td><td>${r.s3}</td><td>${r.s4}</td><td>${r.s5}</td><td>${r.s6}</td><td>${numIn(`d.${r.i}.adj`,r.a,50,-50)}</td><td class="tot">${r.total}</td></tr>`).join('')}</tbody></table></div>
+  <div class="acts"><button class="btn sm" data-act="refresh">Update ranking</button><button class="btn sm" data-act="copyres">Copy results</button><button class="btn sm" data-act="back">Back to Quickfire</button></div><div class="msg" id="copymsg" role="status"></div>
+  <details class="paste" ${G.rf?'open':''}><summary>Instructor: choose a final refinement (optional), or end here</summary><div class="in">
+   <div class="chips">${RF.map((r,k)=>`<button class="btn sm" data-act="rfset" data-v="${k}">Preset ${k+1}</button>`).join('')}</div>
+   ${area('rf',G.rf,'Write the refinement task for every group, or pick a preset')}
+   ${G.rf?S.groups.map((g,i)=>`<div class="stk"><h3>${esc(g.name)}</h3>${area(`d.${i}.rf`,G.d[i].rf,'Refined answer')}<label class="score">Refinement score (0 to 10) ${numIn(`d.${i}.rs`,G.d[i].rs,10)}</label>${G.d[i].rfb?`<div class="fb">${esc(G.d[i].rfb)}</div>`:''}</div>`).join('')+`<div class="acts">${aiBtn('rf','Grade refinements with AI')}</div>${aiNote()}`:''}
+  </div></details>
+  <div class="stk"><div class="label">Instructor note</div>${area('note',G.note,'Optional comment to go with the score output')}</div>
+  <div class="acts"><button class="btn go" data-act="again">Play again with these teams</button><button class="btn" data-act="reset">Start over</button></div>`;
+}
+function resText(){
+  const G=S.game;
+  return `SCENARIO RESULTS | ${audText()}\n`+S.groups.map((g,i)=>{const t=tot(G,G.d[i]),a=+G.d[i].adj||0;return {n:g.name,t,a,s:sum(t)+a}}).sort((x,y)=>y.s-x.s).map((r,k)=>`${k+1}. ${r.n}: ${r.s} pts (Stakeholders ${r.t.s1}, Benchmark ${r.t.s2}, Concept ${r.t.s3}, Present ${r.t.s4}, Quickfire ${r.t.s5}, Refine ${r.t.s6}${r.a?', Adjust '+r.a:''})`).join('\n')+(G.note?'\n\nInstructor note: '+G.note:'');
+}
+
+/* ---------- AI grading ---------- */
+const cl=(v,m)=>Math.min(m,Math.max(0,Math.round(+v||0)));
+const ctx=i=>{const c=caseOf(i);return `Case: ${c.title}. Problem: ${c.problem} Location: ${c.location}. Overall need: ${c.needs} Limitations: ${c.limits}`};
+async function runAI(kind){
+  const G=S.game,i=S.gi,d=G.d[i],c=caseOf(i); aiBusy=kind; aiMsg=''; render();
+  let done=false;
+  try{
+    if(kind==='s1'){
+      const sts=c.stakeholders.map((s,k)=>({k,s:stk(s),dd:descOf(s,c)}));
+      const items=sts.map(x=>({stakeholder:x.s.name,true_needs:x.dd.needs,true_limitations:x.dd.limits,group_needs:[0,1,2].map(j=>d.a[x.k+'n'+j]||''),group_limitations:[0,1].map(j=>d.a[x.k+'c'+j]||'')}));
+      const j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nFor each stakeholder a group wrote up to 3 needs and 2 limitations in their own words. Mark an answer true only if it clearly matches the meaning of one of that stakeholder's true needs (or true limitations). Empty answers are false. One true item can be matched by only one answer.\nReturn only a JSON array with one object per stakeholder in the same order: {"needs":[3 booleans],"limits":[2 booleans]}.\n${JSON.stringify(items)}`);
+      if(Array.isArray(j)&&j.length>=sts.length){
+        sts.forEach(x=>{const r=j[x.k]||{};
+          [0,1,2].forEach(q=>{const t=d.a[x.k+'n'+q]||'';d.ok[x.k+'n'+q]=t.trim()?((r.needs&&r.needs[q])?1:-1):0});
+          [0,1].forEach(q=>{const t=d.a[x.k+'c'+q]||'';d.ok[x.k+'c'+q]=t.trim()?((r.limits&&r.limits[q])?1:-1):0})});
+        d.rev=true;done=true;
+      }else d.rev=true;
+    }else if(kind==='s2'){
+      const j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nA group offered benchmark cases. Score each from 0 to 10: is it a real, documented case (validity) and does it resemble this problem and offer useful lessons (relevance)? Empty or invented cases score 0. Give a one-sentence reason.\nReturn only a JSON array, one object per benchmark in order: {"score":integer,"reason":string}.\n${JSON.stringify(d.b.map(b=>({case:b.t,why:b.w})))}`);
+      if(Array.isArray(j)&&j.length>=d.b.length){d.b.forEach((b,k)=>{b.s=cl(j[k]&&j[k].score,10);b.fb=String((j[k]&&j[k].reason)||'')});done=true}
+    }else if(kind==='s3'){
+      const sts=c.stakeholders.map(s=>({stakeholder:stk(s).name,...descOf(s,c)}));
+      const j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nStakeholders: ${JSON.stringify(sts)}\nThe group's concept: ${JSON.stringify({solution:d.c.st,how_it_works:d.c.how,how_it_meets_needs:d.c.meets,what_was_dropped:d.c.drop})}\nScore each part from 0 to 10 with a one-sentence reason: "how" (is the solution clear and workable), "meets" (does it meet the stakeholders' needs and the limits), "dropped" (does the group honestly and specifically name what it gave up or left unaddressed, such as a stakeholder need). Empty parts score 0.\nReturn only a JSON object: {"how":{"score":int,"reason":str},"meets":{"score":int,"reason":str},"dropped":{"score":int,"reason":str}}.`);
+      if(j&&j.how&&j.meets&&j.dropped){const cc=d.c;cc.s1=cl(j.how.score,10);cc.s2=cl(j.meets.score,10);cc.s3=cl(j.dropped.score,10);cc.fb=`How it works: ${j.how.reason||''} Needs met: ${j.meets.reason||''} Dropped: ${j.dropped.reason||''}`;done=true}
+    }else if(kind==='s5'){
+      const qs=d.q.slice(0,S.nQ||1);
+      const j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nThe group's solution: ${d.c.st||'(not written)'}\nA surprise hit their solution. There is no right or wrong answer. Score each response from 0 to 10 on how well the group justifies its choice (clear reasoning, links to stakeholders and limits). Empty responses score 0. Give a one-sentence reason.\nReturn only a JSON array, one object per scenario in order: {"score":int,"reason":str}.\n${JSON.stringify(qs.map(x=>({scenario:x.sc[1],decision:x.ans})))}`);
+      if(Array.isArray(j)&&j.length>=qs.length){qs.forEach((x,k)=>{x.s=cl(j[k]&&j[k].score,10);x.fb=String((j[k]&&j[k].reason)||'')});done=true}
+    }else if(kind==='rf'){
+      const j=await aiJson(`You grade a classroom problem-solving game. Refinement task set by the instructor: ${G.rf}\nScore each group's refined answer from 0 to 10 for how well it answers the task and justifies its choices. Empty answers score 0. Give a one-sentence reason.\nReturn only a JSON array, one object per group in order: {"score":int,"reason":str}.\n${JSON.stringify(G.d.map((x,k)=>({solution:x.c.st,refined_answer:x.rf})))}`);
+      if(Array.isArray(j)&&j.length>=G.d.length){G.d.forEach((x,k)=>{x.rs=cl(j[k]&&j[k].score,10);x.rfb=String((j[k]&&j[k].reason)||'')});done=true}
+    }
+  }catch(e){done=false}
+  aiMsg=done?'AI grading done. You can still change any score by hand.':'AI grading did not answer (not connected, not allowed, or it timed out). Enter scores by hand, or try again.';
+  aiBusy=''; render();
+}
+function gameAct(a,b,v){
+  if(a==='qn'){S.nQ=Math.min(2,Math.max(1,(S.nQ||1)+(+b.dataset.d)));return true}
+  if(a==='play'){ensureGame();S.gi=0;resetTimer();S.step=5;return true}
+  const G=S.game; if(!G)return false;
+  if(a==='ai'){if(!aiBusy)runAI(v);return 'stop'}
+  if(a==='gi'){S.gi=+v;resetTimer();aiMsg='';return true}
+  if(a==='nextg'){S.gi=(S.gi+1)%S.nGroups;resetTimer();return true}
+  if(a==='gset'){const k=b.dataset.k;G[k]=Math.min(30,Math.max(1,G[k]+(+b.dataset.d)));resetTimer();return true}
+  if(a==='ok'){const d=G.d[S.gi],k=b.dataset.key;d.ok[k]=d.ok[k]===+v?0:+v;return true}
+  if(a==='rev'){const d=G.d[S.gi];d.rev=!d.rev;return true}
+  if(a==='addb'){const d=G.d[S.gi];if(d.b.length<3)d.b.push({t:'',w:'',s:0,fb:''});return true}
+  if(a==='delb'){const d=G.d[S.gi];if(d.b.length>1)d.b.splice(+v,1);return true}
+  if(a==='rfset'){G.rf=RF[+v];return true}
+  if(a==='trst'){clearInterval(T.iv);T={step:8,left:G.presMin*60,run:false,iv:null};return true}
+  if(a==='tgo'){
+    if(T.run){clearInterval(T.iv);T.run=false}
+    else if(T.left>0){T.run=true;T.iv=setInterval(()=>{
+      if(S.step!==T.step){clearInterval(T.iv);return}
+      T.left--;const o=$('#tm');if(o)o.textContent=tfmt(T.left);
+      if(T.left<=0){clearInterval(T.iv);T.run=false;render()}},1000)}
+    return true}
+  if(a==='refresh')return true;
+  if(a==='again'){S.game=null;S.result=null;S.opened=[];S.step=3;resetTimer();return true}
+  if(a==='copyres'){const m=$('#copymsg');(navigator.clipboard?navigator.clipboard.writeText(resText()):Promise.reject()).then(()=>{m.textContent='Results copied.'}).catch(()=>{m.textContent='Copying is blocked here. Select the table instead.'});return 'stop'}
+  return false;
+}
+document.addEventListener('input',e=>{
+  const t=e.target,p=t.dataset.p; if(!p||!S.game)return;
+  const ks=p.split('.');let o=S.game;
+  for(let i=0;i<ks.length-1;i++){o=o[ks[i]];if(!o)return}
+  o[ks[ks.length-1]]=t.dataset.n!==undefined?Math.min(+t.dataset.max,Math.max(+t.dataset.min,+t.value||0)):t.value;
+  save();
+});
+
+/* ---------- stakeholder descriptions: a paragraph hiding 4 needs and 3 limitations ---------- */
+const dot=x=>{x=String(x||'').trim();return /[.!?]$/.test(x)?x:x+'.'};
+function paraFrom(s,dd){
+  const n=dd.needs,l=dd.limits;
+  return [`Ask ${s.name} what matters and the answer comes in pieces.`,n[0],l[0],n[1],n[2],l[1],n[3],l[2]].map(dot).join(' ');
+}
+function descOf(s,c){
+  s=stk(s);
+  const ok=s.d&&s.d.needs&&s.d.needs.length>=4&&s.d.limits&&s.d.limits.length>=3;
+  const dd=ok?s.d:{needs:[s.need,'To be heard before any decision is made','To see costs and risks shared fairly','To get clear, honest information about the plan'],limits:[c.limits,'Has limited time to take part','Has little power over the overall budget']};
+  return {needs:dd.needs,limits:dd.limits,text:(dd.text&&dd.text.length>40)?dd.text:paraFrom(s,dd)};
+}
+async function enrichCases(cases){
+  if(!AI.local&&!(await getSample()))return;
+  const one=async c=>{
+    if(c.stakeholders.every(s=>s.d&&s.d.text&&s.d.needs&&s.d.needs.length>=4))return;
+    try{
+      const list=c.stakeholders.map((s,k)=>`${k+1}. ${stk(s).name} (main need: ${stk(s).need})`).join('\n');
+      const j=await aiJson(`You write stakeholder descriptions for a classroom problem-solving game.\nCase: ${c.title}. Problem: ${c.problem} Location: ${c.location}. Overall limitations: ${c.limits}\nFor each stakeholder below, in order, first decide EXACTLY 4 different needs and EXACTLY 3 different limitations (things that restrict what this stakeholder can do or accept). Each is one short, specific sentence; the first need must match the stakeholder's main need.\nThen write "text": ONE paragraph of 90 to 130 words about this stakeholder that carries all 7 items inside the story. Rules: no lists, no bullet points, and never use the labels "need" or "limitation". Weave the items into natural sentences about the stakeholder's situation, worries, history and daily routine, in a different order from the lists, so a reader must think to pull them out. Make it a little challenging: include 2 or 3 plausible but unimportant background details that are NOT among the 7 items, and let some items be implied rather than stated word for word. Every one of the 7 items must still be clearly inferable from the paragraph.\nReturn only a JSON array with one object per stakeholder, same order: {"needs":[4 strings],"limits":[3 strings],"text":string}.\n${list}`,60000); if(!Array.isArray(j))return;
+      c.stakeholders.forEach((s,k)=>{const x=j[k];if(x&&Array.isArray(x.needs)&&x.needs.length>=4&&Array.isArray(x.limits)&&x.limits.length>=3)s.d={needs:x.needs.slice(0,4).map(String),limits:x.limits.slice(0,3).map(String),text:String(x.text||'')}});
+    }catch(e){}
+  };
+  if(AI.local){for(const c of cases)await one(c)}else await Promise.all(cases.map(one));
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b||b.disabled)return;
+  const a=b.dataset.act, v=b.dataset.v; let gr;
+  if(a==='aicheck'){checkAI();return}
+  if(a==='inst'){S.inst=v}
+  else if(a==='grade'){S.grade=+v}
+  else if(a==='cat'){S.cat=v}
+  else if(a==='disc'){S.discs=S.discs.includes(v)?S.discs.filter(x=>x!==v):[...S.discs,v];if(!S.discs.includes('engr'))S.engType=null}
+  else if(a==='eng'){S.engType=S.engType===v?null:v}
+  else if(a==='year'){S.year=S.year===v?null:v}
+  else if(a==='mode'){S.mode=v}
+  else if(a==='bump'){const k=b.dataset.k,max=k==='nGroups'?12:20;S[k]=Math.min(max,Math.max(1,S[k]+(+b.dataset.d)));dealMsg=''}
+  else if(a==='deal'){
+    const names=($('#classlist').value||'').split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+    if(!names.length){$('#dealmsg').textContent='Paste at least one name first.';return}
+    S.nMembers=Math.min(20,Math.max(1,Math.ceil(names.length/S.nGroups)));
+    S.groups.forEach(g=>g.members=[]); ensureGroups(); S.groups.forEach(g=>g.members=[]);
+    const cap=S.nGroups*S.nMembers, sh=shuffle(names).slice(0,cap);
+    sh.forEach((n,i)=>S.groups[i%S.nGroups].members.push(n));
+    dealMsg=names.length>cap?`Dealt ${cap} names. ${names.length-cap} did not fit: add more groups and deal again.`:`Dealt ${names.length} names into ${S.nGroups} groups.`;
+  }
+  else if((gr=gameAct(a,b,v))){if(gr==='stop')return}
+  else if(a==='next'){
+    if(!canNext())return;
+    if(S.step===3){generate();return}
+    S.step=(S.step===0&&skipDetails())?2:S.step+1;
+  }
+  else if(a==='back'){S.step=(S.step===2&&skipDetails())?0:S.step-1}
+  else if(a==='goto'){S.step=+b.dataset.i}
+  else if(a==='open'){const i=+b.dataset.i;if(!S.opened.includes(i))S.opened.push(i)}
+  else if(a==='openall'){S.opened=S.groups.map((_,i)=>i)}
+  else if(a==='regen'){generate();return}
+  else if(a==='reset'){resetTimer();S={step:0,inst:null,grade:null,cat:null,discs:[],engType:null,year:null,nGroups:4,nMembers:4,groups:[],mode:null,result:null,opened:[],game:null,gi:0};dealMsg=''}
+  else if(a==='copy'){
+    const t=briefsText(), m=$('#copymsg');
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{m.textContent='Briefs copied.'}).catch(()=>{m.textContent='Copying is blocked here. Select the text on the cards instead.'});
+    return;
+  }
+  render();
+});
+document.addEventListener('input',e=>{
+  const t=e.target; if(t.dataset.g===undefined)return;
+  const g=S.groups[+t.dataset.g]; if(!g)return;
+  if(t.dataset.m!==undefined)g.members[+t.dataset.m]=t.value; else g.name=t.value||('Group '+LETTERS[+t.dataset.g]);
+  save();
+});
+
+function start(d){
+  let init=d&&typeof d.step==='number'?d:null;
+  if(!init){try{init=JSON.parse(localStorage.getItem('caseroom')||'null')}catch(e){init=null}}
+  if(init&&typeof init.step==='number')S=Object.assign(S,init);
+  if(S.step>=4&&!S.result)S.step=3;
+  render();
+  checkAI().then(()=>{if(S.result&&S.mode&&needsMissing(S.result))generate()});
+}
+try{window.claude&&window.claude.hot&&window.claude.hot.snapshot&&window.claude.hot.snapshot(()=>S)}catch(e){}
+if(window.claude&&window.claude.hot&&window.claude.hot.ready)window.claude.hot.ready(start);
+else start((window.claude&&window.claude.hot&&window.claude.hot.data)||{});
+</script>
+</body>
+</html>
