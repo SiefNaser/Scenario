@@ -421,7 +421,7 @@ function render(){
 /* ---------- case generation ---------- */
 /* ---------- AI: the Python server on this laptop (Ollama), or Claude when the page runs inside Claude ---------- */
 const AI_BASE=location.protocol==='http:'?'':'http://localhost:5000';
-const AI={local:false,claude:false,model:'',checking:false};
+const AI={local:false,claude:false,model:'',checking:false,lastErr:''};
 let sampleP=null;
 function getSample(){
   if(!sampleP&&window.claude&&typeof window.claude.use==='function'){try{sampleP=window.claude.use('sample').catch(()=>null)}catch(e){sampleP=null}}
@@ -455,10 +455,12 @@ async function aiJson(prompt,ms){
   ms=ms||60000;
   if(AI.local){
     try{
-      let j=parseJson(await askLocal(prompt+'\n\nWrap your whole answer as one JSON object: {"result": <the JSON asked for above>}.',true,ms*4));
-      if(j&&!Array.isArray(j)&&j.result!==undefined)j=j.result;
+      let t=await askLocal(prompt+'\n\nWrap your whole answer as one JSON object: {"result": <the JSON asked for above>}.',true,ms*6), j;
+      try{j=parseJson(t)}catch(e){AI.lastErr='the AI answer could not be read';return null}
+      /* small models sometimes add extra wrapping: unwrap single-key objects */
+      for(let k=0;k<3&&j&&!Array.isArray(j)&&typeof j==='object';k++){const ks=Object.keys(j);if(ks.length===1&&j[ks[0]]&&typeof j[ks[0]]==='object')j=j[ks[0]];else break}
       return j;
-    }catch(e){return null}
+    }catch(e){AI.lastErr=e.name==='AbortError'?'the AI on this laptop took too long':(e.message||'the AI server did not answer');return null}
   }
   const sample=await getSample(); if(!sample)return null;
   const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);
@@ -595,7 +597,7 @@ function vS2(){
    ${area(`d.${i}.b.${j}.w`,b.w,'Why is it valid and relevant? What can we learn from it?')}
    <label class="score">Score (0 to 10) ${numIn(`d.${i}.b.${j}.s`,b.s,10)}</label>${b.fb?`<div class="fb">${esc(b.fb)}</div>`:''}
    ${j>0?`<div><button class="btn sm" data-act="delb" data-v="${j}">Remove</button></div>`:''}</div>`).join('')}</div>
-  <div class="acts">${aiBtn('s2','Grade with AI')}${d.b.length<3?'<button class="btn sm" data-act="addb">Add another benchmark (optional)</button>':''}</div>${aiNote()}${navRow('Next: Conceptualisation')}`;
+  <div class="acts">${aiBtn('s2','Grade with AI')}${d.b.length<3?'<button class="btn sm" data-act="addb">Add another benchmark (optional)</button>':''}<span class="src">Stage 2 score: ${tot(G,d).s2} pts (benchmark scores added up)</span></div>${aiNote()}${navRow('Next: Conceptualisation')}`;
 }
 function vS3(){
   if(!S.result)return vMode(); ensureGame();
@@ -633,12 +635,12 @@ function vS5(){
   if(!S.result)return vMode(); ensureGame(); dealQuick();
   const G=S.game,i=S.gi,d=G.d[i],nq=S.nQ||1;
   const cards=d.q.slice(0,nq).map((x,j)=>`<div class="file"><div class="head" style="--g:#8F6A4C"><b>${esc(x.sc[0])}</b><code>SCENARIO ${j+1}</code></div><div class="brief"><p style="margin:0;font-size:20px;font-weight:600">${esc(x.sc[1])}</p>
-   <div class="mission">This hits your solution${d.c.st?': “'+esc(d.c.st)+'”':''}. Think and decide, then say what you do and why.</div>
+   <div class="mission">This hits your solution${d.c.st?': “'+esc(d.c.st.trim().replace(/[.!?]+$/,''))+'”':''}. Think and decide, then say what you do and why.</div>
    ${area(`d.${i}.q.${j}.ans`,x.ans,'Your decision and your reasons')}
    <label class="score">Justification score (0 to 10) ${numIn(`d.${i}.q.${j}.s`,x.s,10)}</label>${x.fb?`<div class="fb">${esc(x.fb)}</div>`:''}</div></div>`).join('');
   return `${head(5,'Quickfire <em>round.</em>',2,'Each group gets a surprise on the spot, an opportunity or an obstacle, picked at random. There is no right or wrong answer: points reward how well you justify your choice.')}
   ${tabs()}${timerHtml()}<div class="files">${cards}</div>
-  <div class="acts">${aiBtn('s5','Grade with AI')}</div>${aiNote()}${navRow('See total score')}`;
+  <div class="acts">${aiBtn('s5','Grade with AI')}<span class="src">Stage 5 score: ${tot(G,d).s5} pts</span></div>${aiNote()}${navRow('See total score')}`;
 }
 function vResults(){
   if(!S.result)return vMode(); ensureGame();
@@ -663,39 +665,49 @@ function resText(){
 }
 
 /* ---------- AI grading ---------- */
+const asArr=j=>{if(Array.isArray(j))return j;if(!j||typeof j!=='object')return null;if('score' in j)return [j];const v=Object.values(j);return v.find(Array.isArray)||v.filter(x=>x&&typeof x==='object')};
 const cl=(v,m)=>Math.min(m,Math.max(0,Math.round(+v||0)));
 const ctx=i=>{const c=caseOf(i);return `Case: ${c.title}. Problem: ${c.problem} Location: ${c.location}. Overall need: ${c.needs} Limitations: ${c.limits}`};
 async function runAI(kind){
-  const G=S.game,i=S.gi,d=G.d[i],c=caseOf(i); aiBusy=kind; aiMsg=''; render();
+  const G=S.game,i=S.gi,d=G.d[i],c=caseOf(i); aiBusy=kind; aiMsg=''; AI.lastErr=''; AI.partial=''; render();
   let done=false;
   try{
     if(kind==='s1'){
       const sts=c.stakeholders.map((s,k)=>({k,s:stk(s),dd:descOf(s,c)}));
-      const items=sts.map(x=>({stakeholder:x.s.name,true_needs:x.dd.needs,true_limitations:x.dd.limits,group_needs:[0,1,2].map(j=>d.a[x.k+'n'+j]||''),group_limitations:[0,1].map(j=>d.a[x.k+'c'+j]||'')}));
-      const j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nFor each stakeholder a group wrote up to 3 needs and 2 limitations in their own words. Mark an answer true only if it clearly matches the meaning of one of that stakeholder's true needs (or true limitations). Empty answers are false. One true item can be matched by only one answer.\nReturn only a JSON array with one object per stakeholder in the same order: {"needs":[3 booleans],"limits":[2 booleans]}.\n${JSON.stringify(items)}`);
-      if(Array.isArray(j)&&j.length>=sts.length){
-        sts.forEach(x=>{const r=j[x.k]||{};
-          [0,1,2].forEach(q=>{const t=d.a[x.k+'n'+q]||'';d.ok[x.k+'n'+q]=t.trim()?((r.needs&&r.needs[q])?1:-1):0});
-          [0,1].forEach(q=>{const t=d.a[x.k+'c'+q]||'';d.ok[x.k+'c'+q]=t.trim()?((r.limits&&r.limits[q])?1:-1):0})});
+      const items=[],ids=[];
+      sts.forEach(x=>{const answers={};
+        [0,1,2].forEach(q=>{const id=x.k+'n'+q,t=(d.a[id]||'').trim();if(t){answers[id]=t;ids.push(id)}});
+        [0,1].forEach(q=>{const id=x.k+'c'+q,t=(d.a[id]||'').trim();if(t){answers[id]=t;ids.push(id)}});
+        if(Object.keys(answers).length)items.push({stakeholder:x.s.name,true_needs:x.dd.needs,true_limitations:x.dd.limits,answers})});
+      if(!ids.length){aiBusy='';aiMsg='Write at least one need or limitation first.';render();return}
+      const j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nPlayers read a description of each stakeholder and wrote that stakeholder's needs and limitations in their own words. Every answer has an id. Ids with "n" are needs; ids with "c" are limitations.\nMark an answer true only if it clearly matches the meaning of one of that stakeholder's true needs (for "n" ids) or true limitations (for "c" ids). The wording can differ, but the meaning must match. One true item can be matched by only one answer.\nReturn only a JSON object that maps EVERY answer id to true or false, for example {"0n0": true, "0c1": false}.\n${JSON.stringify(items)}`);
+      const marks={};
+      (function walk(o){if(!o||typeof o!=='object')return;for(const [k,v] of Object.entries(o)){if(/^\d+[nc]\d$/.test(k)&&(v===null||typeof v!=='object'))marks[k]=v;else walk(v)}})(j);
+      const yes=v=>v===true||v===1||/^(true|yes|correct|1)$/i.test(String(v).trim());
+      const got=ids.filter(id=>id in marks);
+      if(got.length){
+        sts.forEach(x=>{[0,1,2].forEach(q=>{const id=x.k+'n'+q;if(!(d.a[id]||'').trim())d.ok[id]=0});[0,1].forEach(q=>{const id=x.k+'c'+q;if(!(d.a[id]||'').trim())d.ok[id]=0})});
+        got.forEach(id=>{d.ok[id]=yes(marks[id])?1:-1});
+        if(got.length<ids.length)AI.partial=` ${ids.length-got.length} answer(s) were not graded: judge them by hand.`;
         d.rev=true;done=true;
       }else d.rev=true;
     }else if(kind==='s2'){
-      const j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nA group offered benchmark cases. Score each from 0 to 10: is it a real, documented case (validity) and does it resemble this problem and offer useful lessons (relevance)? Empty or invented cases score 0. Give a one-sentence reason.\nReturn only a JSON array, one object per benchmark in order: {"score":integer,"reason":string}.\n${JSON.stringify(d.b.map(b=>({case:b.t,why:b.w})))}`);
-      if(Array.isArray(j)&&j.length>=d.b.length){d.b.forEach((b,k)=>{b.s=cl(j[k]&&j[k].score,10);b.fb=String((j[k]&&j[k].reason)||'')});done=true}
+      let j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nA group offered benchmark cases. Score each from 0 to 10: is it a real, documented case (validity) and does it resemble this problem and offer useful lessons (relevance)? Empty or invented cases score 0. Give a one-sentence reason.\nReturn only a JSON array, one object per benchmark in order: {"score":integer,"reason":string}.\n${JSON.stringify(d.b.map(b=>({case:b.t,why:b.w})))}`);
+      if((j=asArr(j))&&j.length>=d.b.length){d.b.forEach((b,k)=>{b.s=cl(j[k]&&j[k].score,10);b.fb=String((j[k]&&j[k].reason)||'')});done=true}
     }else if(kind==='s3'){
       const sts=c.stakeholders.map(s=>({stakeholder:stk(s).name,...descOf(s,c)}));
       const j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nStakeholders: ${JSON.stringify(sts)}\nThe group's concept: ${JSON.stringify({solution:d.c.st,how_it_works:d.c.how,how_it_meets_needs:d.c.meets,what_was_dropped:d.c.drop})}\nScore each part from 0 to 10 with a one-sentence reason: "how" (is the solution clear and workable), "meets" (does it meet the stakeholders' needs and the limits), "dropped" (does the group honestly and specifically name what it gave up or left unaddressed, such as a stakeholder need). Empty parts score 0.\nReturn only a JSON object: {"how":{"score":int,"reason":str},"meets":{"score":int,"reason":str},"dropped":{"score":int,"reason":str}}.`);
       if(j&&j.how&&j.meets&&j.dropped){const cc=d.c;cc.s1=cl(j.how.score,10);cc.s2=cl(j.meets.score,10);cc.s3=cl(j.dropped.score,10);cc.fb=`How it works: ${j.how.reason||''} Needs met: ${j.meets.reason||''} Dropped: ${j.dropped.reason||''}`;done=true}
     }else if(kind==='s5'){
       const qs=d.q.slice(0,S.nQ||1);
-      const j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nThe group's solution: ${d.c.st||'(not written)'}\nA surprise hit their solution. There is no right or wrong answer. Score each response from 0 to 10 on how well the group justifies its choice (clear reasoning, links to stakeholders and limits). Empty responses score 0. Give a one-sentence reason.\nReturn only a JSON array, one object per scenario in order: {"score":int,"reason":str}.\n${JSON.stringify(qs.map(x=>({scenario:x.sc[1],decision:x.ans})))}`);
-      if(Array.isArray(j)&&j.length>=qs.length){qs.forEach((x,k)=>{x.s=cl(j[k]&&j[k].score,10);x.fb=String((j[k]&&j[k].reason)||'')});done=true}
+      let j=await aiJson(`You grade a classroom problem-solving game. ${ctx(i)}\nThe group's solution: ${d.c.st||'(not written)'}\nA surprise hit their solution. There is no right or wrong answer. Score each response from 0 to 10 on how well the group justifies its choice (clear reasoning, links to stakeholders and limits). Empty responses score 0. Give a one-sentence reason.\nReturn only a JSON array, one object per scenario in order: {"score":int,"reason":str}.\n${JSON.stringify(qs.map(x=>({scenario:x.sc[1],decision:x.ans})))}`);
+      if((j=asArr(j))&&j.length>=qs.length){qs.forEach((x,k)=>{x.s=cl(j[k]&&j[k].score,10);x.fb=String((j[k]&&j[k].reason)||'')});done=true}
     }else if(kind==='rf'){
-      const j=await aiJson(`You grade a classroom problem-solving game. Refinement task set by the instructor: ${G.rf}\nScore each group's refined answer from 0 to 10 for how well it answers the task and justifies its choices. Empty answers score 0. Give a one-sentence reason.\nReturn only a JSON array, one object per group in order: {"score":int,"reason":str}.\n${JSON.stringify(G.d.map((x,k)=>({solution:x.c.st,refined_answer:x.rf})))}`);
-      if(Array.isArray(j)&&j.length>=G.d.length){G.d.forEach((x,k)=>{x.rs=cl(j[k]&&j[k].score,10);x.rfb=String((j[k]&&j[k].reason)||'')});done=true}
+      let j=await aiJson(`You grade a classroom problem-solving game. Refinement task set by the instructor: ${G.rf}\nScore each group's refined answer from 0 to 10 for how well it answers the task and justifies its choices. Empty answers score 0. Give a one-sentence reason.\nReturn only a JSON array, one object per group in order: {"score":int,"reason":str}.\n${JSON.stringify(G.d.map((x,k)=>({solution:x.c.st,refined_answer:x.rf})))}`);
+      if((j=asArr(j))&&j.length>=G.d.length){G.d.forEach((x,k)=>{x.rs=cl(j[k]&&j[k].score,10);x.rfb=String((j[k]&&j[k].reason)||'')});done=true}
     }
   }catch(e){done=false}
-  aiMsg=done?'AI grading done. You can still change any score by hand.':'AI grading did not answer (not connected, not allowed, or it timed out). Enter scores by hand, or try again.';
+  aiMsg=done?'AI grading done.'+(AI.partial||'')+' You can still change any score by hand.':`AI grading did not work: ${AI.lastErr||(AI.local?'the AI answer came back in the wrong shape':'no AI is connected')}. Try again, or enter scores by hand.`;
   aiBusy=''; render();
 }
 function gameAct(a,b,v){
